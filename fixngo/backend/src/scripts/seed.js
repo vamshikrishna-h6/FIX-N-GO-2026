@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const connectDB = require('../config/db');
 const Service = require('../models/serviceModel');
-const Technician = require('../models/technicianModel');
 const User = require('../models/userModel');
 const Order = require('../models/orderModel');
 const bcrypt = require('bcryptjs');
@@ -23,12 +22,10 @@ const run = async () => {
   await connectDB();
 
   await Service.deleteMany();
-  await Technician.deleteMany();
   await Order.deleteMany();
   await User.deleteMany();
 
   await Service.insertMany(services);
-  await Technician.insertMany(technicians);
 
   const passwordHash = await bcrypt.hash('password123', 10);
 

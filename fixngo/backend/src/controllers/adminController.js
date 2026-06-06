@@ -44,10 +44,11 @@ const getStats = async (req, res, next) => {
       Service.countDocuments(),
       User.countDocuments({ role: 'technician' }),
     ]);
+    const admins = await User.countDocuments({ role: 'admin' });
     const pending = await Order.countDocuments({ status: 'pending' });
     const completed = await Order.countDocuments({ status: 'completed' });
 
-    res.json({ orders, users, services, technicians, pending, completed });
+    res.json({ orders, users, services, technicians, admins, pending, completed });
   } catch (error) {
     next(error);
   }
@@ -117,6 +118,11 @@ const approveTechnician = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Technician not found' });
     }
     tech.isApproved = true;
+    tech.accountStatus = 'active';
+    if (tech.technicianMeta?.verification) {
+      tech.technicianMeta.verification.status = 'verified';
+      tech.technicianMeta.verification.aadhaarVerified = true;
+    }
     tech.isOnline = true;
     await tech.save();
     res.json({ success: true, message: 'Technician approved', data: tech });
@@ -133,6 +139,11 @@ const suspendTechnician = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Technician not found' });
     }
     tech.isApproved = false;
+    tech.accountStatus = 'suspended';
+    if (tech.technicianMeta?.verification) {
+      tech.technicianMeta.verification.status = 'rejected';
+      tech.technicianMeta.verification.aadhaarVerified = false;
+    }
     tech.isOnline = false;
     await tech.save();
     res.json({ success: true, message: 'Technician suspended', data: tech });

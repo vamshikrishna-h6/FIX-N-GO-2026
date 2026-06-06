@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'api_service.dart';
+
+import 'api_service_new.dart';
+import 'widgets/common_widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,137 +13,862 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final _apiService = ApiService();
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  final _api = ApiService();
   List<dynamic> _jobs = [];
   bool _loading = true;
   bool _isOnline = false;
+  int _currentTab = 0;
+  Map<String, dynamic>? _dashboard;
+
+  Timer? _countdownTimer;
+  int _countdown = 20;
+  dynamic _incomingJob;
+  late AnimationController _popupCtrl;
 
   @override
   void initState() {
     super.initState();
-    _fetchJobs();
-    // Start offline by default
-    _apiService.updateLocation(0, 0, false); 
-  }
-
-  Future<void> _updateStatus(bool online) async {
-    setState(() => _isOnline = online);
-    if (!online) {
-      await _apiService.updateLocation(0, 0, false);
-      return;
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() => _isOnline = false);
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      setState(() => _isOnline = false);
-      return;
-    }
-
-    Position position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+    _popupCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
-    await _apiService.updateLocation(position.latitude, position.longitude, true);
+    _fetchAll();
   }
 
-  Future<void> _fetchJobs() async {
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _popupCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchAll() async {
     setState(() => _loading = true);
-    final jobs = await _apiService.getAvailableJobs();
+    final jobs = await _api.getAvailableJobs();
+    final dash = await _api.getDashboard();
+    if (!mounted) return;
     setState(() {
       _jobs = jobs;
+      _dashboard = dash;
       _loading = false;
+    });
+    if (_jobs.isNotEmpty && _isOnline) {
+      _showIncomingJob(_jobs[0]);
+    }
+  }
+
+  void _showIncomingJob(dynamic job) {
+    setState(() {
+      _incomingJob = job;
+      _countdown = 20;
+    });
+    _popupCtrl.forward(from: 0);
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_countdown <= 0) {
+        t.cancel();
+        _dismissJobRequest();
+      } else if (mounted) {
+        setState(() => _countdown--);
+      }
+    });
+  }
+
+  void _dismissJobRequest() {
+    _countdownTimer?.cancel();
+    _popupCtrl.reverse().then((_) {
+      if (mounted) setState(() => _incomingJob = null);
     });
   }
 
   void _acceptJob(String id) async {
-    bool success = await _apiService.acceptJob(id);
+    _dismissJobRequest();
+    final success = await _api.acceptJob(id);
+    if (!mounted) return;
     if (success) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job accepted!')));
-      _fetchJobs();
+      final job = _jobs.firstWhere(
+        (item) => item['_id'] == id,
+        orElse: () => {'_id': id},
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Job accepted!'), backgroundColor: AppColors.green),
+      );
+      Navigator.pushNamed(context, '/job_detail', arguments: job);
     } else {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to accept job.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to accept job'), backgroundColor: AppColors.red),
+      );
+    }
+  }
+
+  Future<void> _toggleOnline(bool val) async {
+    setState(() => _isOnline = val);
+    if (!val) {
+      await _api.updateLocation(0, 0, false);
+      return;
+    }
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        if (mounted) setState(() => _isOnline = false);
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      await _api.updateLocation(pos.latitude, pos.longitude, true);
+      if (mounted) {
+        await _fetchAll();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isOnline = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Available Jobs'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        actions: [
-          Row(
-            children: [
-              Text(_isOnline ? 'Online' : 'Offline', style: const TextStyle(fontSize: 12)),
-              Switch(
-                value: _isOnline,
-                onChanged: _updateStatus,
-                activeThumbColor: Colors.greenAccent,
-              ),
-            ],
+      backgroundColor: AppColors.bg,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                _buildStats(),
+                const SizedBox(height: 8),
+                Expanded(child: _buildBody()),
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.assignment),
-            onPressed: () => Navigator.pushNamed(context, '/my_jobs'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.account_balance_wallet),
-            onPressed: () => Navigator.pushNamed(context, '/earnings'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () => Navigator.pushNamed(context, '/profile'),
-          )
+          if (_incomingJob != null) _buildJobRequestOverlay(),
         ],
       ),
-      body: _loading 
-        ? const Center(child: CircularProgressIndicator())
-        : _jobs.isEmpty 
-          ? const Center(
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: _isOnline ? AppColors.green : AppColors.border,
+                width: 2,
+              ),
+            ),
+            child: ClipOval(
+              child: Container(
+                color: AppColors.card,
+                child: const Icon(Icons.person_rounded, color: AppColors.grey, size: 24),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _dashboard?['name'] ?? 'Technician',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      margin: const EdgeInsets.only(right: 5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isOnline ? AppColors.green : AppColors.grey,
+                      ),
+                    ),
+                    Text(
+                      _isOnline ? 'Online • Accepting jobs' : 'Offline',
+                      style: TextStyle(
+                        color: _isOnline ? AppColors.green : AppColors.grey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/notifications'),
+            child: Container(
+              width: 40,
+              height: 40,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/my_jobs'),
+            child: Container(
+              width: 40,
+              height: 40,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Icon(Icons.assignment_outlined, color: Colors.white, size: 20),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _toggleOnline(!_isOnline),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 56,
+              height: 30,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: _isOnline ? AppColors.green : AppColors.card,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: _isOnline ? AppColors.green : AppColors.border,
+                ),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                alignment: _isOnline ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStats() {
+    final today = _dashboard?['todayEarnings'] ?? 0;
+    final jobs = _dashboard?['jobsDone'] ?? 0;
+    final rating = _dashboard?['rating'] ?? '4.8';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        children: [
+          _statCard('₹$today', "Today's Earn", Icons.currency_rupee_rounded, AppColors.green),
+          const SizedBox(width: 10),
+          _statCard('$jobs', 'Jobs Done', Icons.check_circle_rounded, AppColors.orange),
+          const SizedBox(width: 10),
+          _statCard('$rating ★', 'Rating', Icons.star_rounded, AppColors.yellow),
+        ],
+      ),
+    );
+  }
+
+  Widget _statCard(String value, String label, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(color: AppColors.grey, fontSize: 10),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_currentTab == 0) return _buildJobsTab();
+    if (_currentTab == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.pushNamed(context, '/my_jobs');
+      });
+      setState(() => _currentTab = 0);
+    }
+    if (_currentTab == 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.pushNamed(context, '/earnings');
+      });
+      setState(() => _currentTab = 0);
+    }
+    if (_currentTab == 3) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.pushNamed(context, '/profile');
+      });
+      setState(() => _currentTab = 0);
+    }
+    return _buildJobsTab();
+  }
+
+  Widget _buildJobsTab() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.red, strokeWidth: 2));
+    }
+
+    return RefreshIndicator(
+      color: AppColors.red,
+      backgroundColor: AppColors.card,
+      onRefresh: _fetchAll,
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+            sliver: SliverToBoxAdapter(
+              child: Row(
+                children: [
+                  const Text(
+                    'Available Jobs',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.red.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_jobs.length}',
+                      style: const TextStyle(
+                        color: AppColors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (!_isOnline)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.yellow.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.yellow.withValues(alpha: 0.3)),
+                    ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.power_off_rounded, color: AppColors.yellow, size: 20),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Go Online to receive job requests',
+                          style: TextStyle(color: AppColors.yellow, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          if (_jobs.isEmpty)
+            const SliverFillRemaining(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.inbox, size: 64, color: Colors.grey),
+                  Icon(Icons.inbox_rounded, color: AppColors.grey, size: 80),
                   SizedBox(height: 16),
-                  Text('No jobs available right now.', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                ],
-              )
-            )
-          : ListView.builder(
-              itemCount: _jobs.length,
-              itemBuilder: (context, index) {
-                final job = _jobs[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    title: Text(job['serviceType'] ?? 'General Repair', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        Text('Distance: ${job['distance'] != null ? job['distance'].toStringAsFixed(1) : '?'} km'),
-                        Text('Est. Price: \$${job['estimatedPrice'] ?? '?'}'),
-                      ]
-                    ),
-                    trailing: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                      onPressed: () => _acceptJob(job['_id']),
-                      child: const Text('ACCEPT'),
-                    ),
+                  Text(
+                    'No jobs nearby',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
                   ),
-                );
-              },
+                  SizedBox(height: 8),
+                  Text(
+                    'Pull to refresh or wait for new requests',
+                    style: TextStyle(color: AppColors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => _buildJobCard(_jobs[i]),
+                  childCount: _jobs.length,
+                ),
+              ),
             ),
+        ],
+      ),
     );
   }
+
+  Widget _buildJobCard(dynamic job) {
+    final serviceType = job['serviceType'] ?? 'General Repair';
+    final dist = job['distance'] != null ? '${(job['distance'] as num).toStringAsFixed(1)} km' : 'Nearby';
+    final price = job['estimatedPrice'] ?? 0;
+    final address = job['location']?['address'] ?? 'Customer Location';
+
+    return GestureDetector(
+      onTap: () => _showIncomingJob(job),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.build_rounded, color: AppColors.red, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        serviceType,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        address,
+                        style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '₹$price',
+                      style: const TextStyle(
+                        color: AppColors.green,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(dist, style: const TextStyle(color: AppColors.grey, fontSize: 12)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(color: AppColors.border, height: 1),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _jobMeta(Icons.smartphone_rounded, job['deviceModel'] ?? 'Device'),
+                const SizedBox(width: 16),
+                _jobMeta(Icons.schedule_rounded, job['estimatedTime'] ?? '45 min'),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => _acceptJob(job['_id']),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.green,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: AppShadows.green,
+                    ),
+                    child: const Text(
+                      'Accept',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _jobMeta(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.grey, size: 14),
+        const SizedBox(width: 4),
+        Text(text, style: const TextStyle(color: AppColors.grey, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildJobRequestOverlay() {
+    return AnimatedBuilder(
+      animation: _popupCtrl,
+      builder: (context, child) {
+        return Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Opacity(
+            opacity: _popupCtrl.value.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: 0.85 + (0.15 * _popupCtrl.value),
+              alignment: Alignment.bottomCenter,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: _buildJobRequestCard(),
+    );
+  }
+
+  Widget _buildJobRequestCard() {
+    if (_incomingJob == null) return const SizedBox();
+    final job = _incomingJob!;
+    final serviceType = job['serviceType'] ?? 'Screen Replacement';
+    final price = job['estimatedPrice'] ?? 499;
+    final dist = job['distance'] != null ? '${(job['distance'] as num).toStringAsFixed(1)} km' : '1.2 km';
+    final address = job['location']?['address'] ?? '12, MG Road, Hyderabad';
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.5), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.red.withValues(alpha: 0.3),
+            blurRadius: 40,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: LinearProgressIndicator(
+              value: _countdown / 20,
+              backgroundColor: AppColors.border,
+              color: _countdown > 8 ? AppColors.green : AppColors.red,
+              minHeight: 4,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.red.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.notifications_active_rounded, color: AppColors.red, size: 14),
+                          SizedBox(width: 4),
+                          Text(
+                            'NEW JOB REQUEST',
+                            style: TextStyle(
+                              color: AppColors.red,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _countdown > 8 ? AppColors.green : AppColors.red,
+                          width: 2.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$_countdown',
+                          style: TextStyle(
+                            color: _countdown > 8 ? AppColors.green : AppColors.red,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  serviceType,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded, color: AppColors.grey, size: 14),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        address,
+                        style: const TextStyle(color: AppColors.grey, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _infoChip(Icons.route_rounded, dist),
+                    const SizedBox(width: 10),
+                    _infoChip(Icons.schedule_rounded, '~45 min'),
+                    const Spacer(),
+                    Text(
+                      '₹$price',
+                      style: const TextStyle(
+                        color: AppColors.green,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _dismissJobRequest,
+                        child: Container(
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Decline',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: GestureDetector(
+                        onTap: () => _acceptJob(job['_id']),
+                        child: Container(
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: AppColors.green,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: AppShadows.green,
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Accept Job',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppColors.grey, size: 13),
+          const SizedBox(width: 4),
+          Text(text, style: const TextStyle(color: AppColors.grey, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    final items = [
+      _NavItem(Icons.home_rounded, Icons.home_outlined, 'Home'),
+      _NavItem(Icons.assignment_rounded, Icons.assignment_outlined, 'My Jobs'),
+      _NavItem(Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, 'Earnings'),
+      _NavItem(Icons.person_rounded, Icons.person_outlined, 'Profile'),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: const Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: items.asMap().entries.map((e) {
+              final i = e.key;
+              final item = e.value;
+              final active = _currentTab == i;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    if (i == 1) {
+                      Navigator.pushNamed(context, '/my_jobs');
+                    } else if (i == 2) {
+                      Navigator.pushNamed(context, '/earnings');
+                    } else if (i == 3) {
+                      Navigator.pushNamed(context, '/profile');
+                    } else {
+                      setState(() => _currentTab = i);
+                    }
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        active ? item.activeIcon : item.icon,
+                        color: active ? AppColors.red : AppColors.grey,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          color: active ? AppColors.red : AppColors.grey,
+                          fontSize: 10,
+                          fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem {
+  final IconData activeIcon;
+  final IconData icon;
+  final String label;
+
+  _NavItem(this.activeIcon, this.icon, this.label);
 }

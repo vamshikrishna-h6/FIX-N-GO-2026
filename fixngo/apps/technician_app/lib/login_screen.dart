@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import 'api_service_new.dart';
+import '../utils/app_theme.dart';
+import '../widgets/common_widgets.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -8,80 +10,174 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _apiService = ApiService();
-  bool _isLoading = false;
+class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _api = ApiService();
+  bool _loading = false;
+  bool _obscure = true;
+  late AnimationController _animCtrl;
+  late Animation<Offset> _slideAnim;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic),
+    );
+    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut),
+    );
+    _animCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
+  }
 
   void _login() async {
-    setState(() => _isLoading = true);
-    bool success = await _apiService.login(_emailController.text, _passwordController.text);
-    setState(() => _isLoading = false);
+    if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
+      _showSnack('Please fill in all fields', isError: true);
+      return;
+    }
+
+    setState(() => _loading = true);
+    final success = await _api.login(_emailCtrl.text.trim(), _passCtrl.text);
+    setState(() => _loading = false);
+
     if (success) {
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed. Check credentials.')));
+      _showSnack('Invalid credentials. Please try again.', isError: true);
     }
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? AppColors.red : AppColors.green,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.build_circle, size: 80, color: Colors.blueAccent),
-              const SizedBox(height: 16),
-              const Text(
-                'Fix-N-Go Tech', 
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blueAccent)
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sign in to your technician account',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 48),
-              TextField(
-                controller: _emailController, 
-                decoration: const InputDecoration(
-                  labelText: 'Email', 
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                )
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController, 
-                decoration: const InputDecoration(
-                  labelText: 'Password', 
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
-                ), 
-                obscureText: true
-              ),
-              const SizedBox(height: 32),
-              _isLoading 
-                  ? const Center(child: CircularProgressIndicator()) 
-                  : ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: SlideTransition(
+                position: _slideAnim,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 48),
+                    Center(
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: AppColors.red,
+                          shape: BoxShape.circle,
+                          boxShadow: AppShadows.red,
+                        ),
+                        child: const Icon(Icons.build_rounded, size: 40, color: Colors.white),
                       ),
-                      onPressed: _login, 
-                      child: const Text('LOGIN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    )
-            ],
+                    ),
+                    const SizedBox(height: 32),
+                    const Text(
+                      'Welcome back,\nFixer!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Sign in to start earning',
+                      style: TextStyle(color: AppColors.grey, fontSize: 16),
+                    ),
+                    const SizedBox(height: 40),
+                    const SectionLabel('Email'),
+                    TextField(
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        hintText: 'your@email.com',
+                        prefixIcon: Icon(Icons.mail_outline_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const SectionLabel('Password'),
+                    TextField(
+                      controller: _passCtrl,
+                      obscureText: _obscure,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: '••••••••',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: AppColors.grey,
+                          ),
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    PrimaryButton(
+                      label: 'Sign In',
+                      onTap: _login,
+                      isLoading: _loading,
+                      icon: Icons.login_rounded,
+                    ),
+                    const SizedBox(height: 20),
+                    Center(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pushReplacementNamed(context, '/register'),
+                        child: RichText(
+                          text: const TextSpan(
+                            text: "Don't have an account? ",
+                            style: TextStyle(color: AppColors.grey, fontSize: 15),
+                            children: [
+                              TextSpan(
+                                text: 'Register',
+                                style: TextStyle(
+                                  color: AppColors.red,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),

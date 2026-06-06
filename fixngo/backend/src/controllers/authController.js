@@ -13,18 +13,37 @@ const userResponse = (user, token, refreshToken) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  accountStatus: user.accountStatus || 'active',
+  isApproved: user.isApproved || false,
   phone: user.phone || '',
   address: user.address || '',
   city: user.city || '',
   pincode: user.pincode || '',
+  profilePhoto: user.profilePhoto || '',
   isOnline: user.isOnline || false,
+  technicianMeta: user.role === 'technician' ? user.technicianMeta || {} : undefined,
+  customerMeta: user.role === 'customer' ? user.customerMeta || {} : undefined,
+  adminMeta: user.role === 'admin' ? user.adminMeta || {} : undefined,
   token: token || generateToken(user._id),
   refreshToken: refreshToken || '',
 });
 
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, role, phone } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      phone,
+      address,
+      city,
+      pincode,
+      profilePhoto,
+      aadhaarNumber,
+      aadhaarFront,
+      aadhaarBack,
+    } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' });
     }
@@ -46,10 +65,40 @@ const registerUser = async (req, res, next) => {
       password: hashedPassword,
       role: userRole,
       phone: phone || '',
+      address: address || '',
+      city: city || 'Hyderabad',
+      pincode: pincode || '',
+      profilePhoto: profilePhoto || '',
+      accountStatus: userRole === 'technician' ? 'pending' : 'active',
+      isApproved: userRole !== 'technician',
       isOnline: userRole === 'technician',
+      customerMeta:
+        userRole === 'customer'
+          ? {
+              savedAddresses: [],
+              favoriteServices: [],
+              serviceCount: 0,
+              lastServiceAt: null,
+              preferredContact: 'phone',
+            }
+          : undefined,
       technicianMeta:
         userRole === 'technician'
-          ? { emoji: '🛠️', rating: 4.8, experience: '5+ years', jobsDone: 0 }
+          ? {
+              emoji: '🛠️',
+              rating: 4.8,
+              experience: '5+ years',
+              jobsDone: 0,
+              documents: {
+                aadharNumber: aadhaarNumber || '',
+                aadharFront: aadhaarFront || '',
+                aadharBack: aadhaarBack || '',
+              },
+              verification: {
+                status: aadhaarNumber || aadhaarFront || aadhaarBack ? 'pending' : 'unverified',
+                aadhaarVerified: false,
+              },
+            }
           : undefined,
     });
 
@@ -101,10 +150,16 @@ const getProfile = async (req, res, next) => {
       name: req.user.name,
       email: req.user.email,
       role: req.user.role,
+      accountStatus: req.user.accountStatus || 'active',
+      isApproved: req.user.isApproved || false,
       phone: req.user.phone || '',
       address: req.user.address || '',
       city: req.user.city || '',
       pincode: req.user.pincode || '',
+      profilePhoto: req.user.profilePhoto || '',
+      customerMeta: req.user.role === 'customer' ? req.user.customerMeta || {} : undefined,
+      technicianMeta: req.user.role === 'technician' ? req.user.technicianMeta || {} : undefined,
+      adminMeta: req.user.role === 'admin' ? req.user.adminMeta || {} : undefined,
     });
   } catch (error) {
     next(error);
@@ -113,7 +168,7 @@ const getProfile = async (req, res, next) => {
 
 const updateProfile = async (req, res, next) => {
   try {
-    const { name, phone, address, city, pincode } = req.body;
+    const { name, phone, address, city, pincode, profilePhoto } = req.body;
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -122,6 +177,7 @@ const updateProfile = async (req, res, next) => {
     if (address !== undefined) user.address = address;
     if (city !== undefined) user.city = city;
     if (pincode !== undefined) user.pincode = pincode;
+    if (profilePhoto !== undefined) user.profilePhoto = profilePhoto;
     await user.save();
 
     res.json({
@@ -133,6 +189,9 @@ const updateProfile = async (req, res, next) => {
       address: user.address,
       city: user.city,
       pincode: user.pincode,
+      profilePhoto: user.profilePhoto || '',
+      accountStatus: user.accountStatus || 'active',
+      isApproved: user.isApproved || false,
     });
   } catch (error) {
     next(error);

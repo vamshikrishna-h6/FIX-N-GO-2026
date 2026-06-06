@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import 'api_service_new.dart';
+import 'theme/app_theme.dart';
 
 class MyJobsScreen extends StatefulWidget {
   const MyJobsScreen({super.key});
@@ -43,8 +44,8 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Active Jobs'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.bg,
+        foregroundColor: AppColors.white,
       ),
       body: _loading 
         ? const Center(child: CircularProgressIndicator())
@@ -53,9 +54,9 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle_outline, size: 64, color: Colors.grey),
+                  Icon(Icons.check_circle_outline, size: 64, color: AppColors.grey),
                   SizedBox(height: 16),
-                  Text('You have no active jobs.', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  Text('You have no active jobs.', style: TextStyle(color: AppColors.grey, fontSize: 16)),
                 ],
               )
             )
@@ -67,6 +68,11 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: ListTile(
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/job_detail',
+                      arguments: job,
+                    ),
                     contentPadding: const EdgeInsets.all(16),
                     title: Text(job['serviceType'] ?? 'General Repair', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                     subtitle: Column(
@@ -79,9 +85,9 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
                       ]
                     ),
                     trailing: isCompleted 
-                        ? const Icon(Icons.check, color: Colors.green, size: 32)
+                        ? const Icon(Icons.check, color: AppColors.green, size: 32)
                         : ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.green, foregroundColor: AppColors.white),
                             onPressed: () => _markCompleted(job['_id']),
                             child: const Text('COMPLETE'),
                           ),

@@ -2,6 +2,7 @@ const socketIO = require('socket.io');
 const jwt = require('jsonwebtoken');
 const Order = require('../models/orderModel');
 const User = require('../models/userModel');
+const Message = require('../models/messageModel');
 
 let io;
 const connectedUsers = new Map(); // userId -> socket.id mapping
@@ -146,9 +147,19 @@ const initializeSocket = (server) => {
     });
 
     // Chat message
-    socket.on('chat-message', (data) => {
+    socket.on('chat-message', async (data) => {
       try {
         const { recipientId, message, orderId } = data;
+        const timestamp = new Date();
+
+        // Persist message to DB
+        await Message.create({
+          orderId,
+          senderId: socket.userId,
+          receiverId: recipientId,
+          message,
+        });
+
         const recipientSocketId = connectedUsers.get(recipientId);
 
         if (recipientSocketId) {
@@ -156,7 +167,7 @@ const initializeSocket = (server) => {
             senderId: socket.userId,
             message: message,
             orderId: orderId,
-            timestamp: new Date(),
+            timestamp: timestamp,
           });
         }
       } catch (error) {

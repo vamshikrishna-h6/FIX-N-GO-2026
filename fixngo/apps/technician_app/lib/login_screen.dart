@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'api_service.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
@@ -17,8 +19,10 @@ class _LoginScreenState extends State<LoginScreen> {
     bool success = await _apiService.login(_emailController.text, _passwordController.text);
     setState(() => _isLoading = false);
     if (success) {
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed. Check credentials.')));
     }
   }

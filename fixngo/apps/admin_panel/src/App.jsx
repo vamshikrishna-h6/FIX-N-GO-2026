@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import Technicians from './pages/Technicians';
+import Withdrawals from './pages/Withdrawals';
 import './index.css';
 import api from './api';
 
@@ -12,8 +14,15 @@ function Orders() {
   const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
-    api.get('/orders')
-      .then(res => setOrders(res.data.orders || []))
+    api.get('/admin/orders')
+      .then(res => {
+        const data = res.data;
+        if (Array.isArray(data)) {
+          setOrders(data);
+        } else {
+          setOrders(data.orders || data.data || []);
+        }
+      })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, []);
@@ -83,7 +92,14 @@ function Users() {
 
   useEffect(() => {
     api.get('/admin/users')
-      .then(res => setUsers(res.data.users || []))
+      .then(res => {
+        const data = res.data;
+        if (Array.isArray(data)) {
+          setUsers(data);
+        } else {
+          setUsers(data.users || data.data || []);
+        }
+      })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, []);
@@ -143,6 +159,8 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/users" element={<Users />} />
+            <Route path="/technicians" element={<Technicians />} />
+            <Route path="/withdrawals" element={<Withdrawals />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>

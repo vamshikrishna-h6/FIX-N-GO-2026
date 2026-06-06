@@ -11,7 +11,7 @@ void main() {
 }
 
 class FixNGoTechApp extends StatelessWidget {
-  const FixNGoTechApp({Key? key}) : super(key: key);
+  const FixNGoTechApp({super.key});
 
   @override
   Widget build(BuildContext context) {

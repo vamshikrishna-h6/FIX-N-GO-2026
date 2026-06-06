@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ListOrdered, Users, Wrench, LogOut } from 'lucide-react';
+import { LayoutDashboard, ListOrdered, Users, Wrench, LogOut, UserCog, Wallet } from 'lucide-react';
 
 export default function Sidebar() {
   const handleLogout = () => {
@@ -14,7 +14,7 @@ export default function Sidebar() {
         <h2 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 700, letterSpacing: '0.5px' }}>Fix-N-Go</h2>
       </div>
       <nav style={{ padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-        <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+        <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
           <LayoutDashboard size={20} />
           Dashboard
         </NavLink>
@@ -24,7 +24,15 @@ export default function Sidebar() {
         </NavLink>
         <NavLink to="/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Users size={20} />
-          Users & Techs
+          Users
+        </NavLink>
+        <NavLink to="/technicians" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <UserCog size={20} />
+          Technicians
+        </NavLink>
+        <NavLink to="/withdrawals" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Wallet size={20} />
+          Withdrawals
         </NavLink>
       </nav>
       <div style={{ marginTop: 'auto', padding: '1.5rem', borderTop: '1px solid var(--border-light)' }}>

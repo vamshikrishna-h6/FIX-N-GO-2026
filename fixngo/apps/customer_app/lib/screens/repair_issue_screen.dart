@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -161,7 +163,7 @@ class _RepairIssueScreenState extends State<RepairIssueScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.brandBlue.withOpacity(0.12)
+                              ? AppColors.brandBlue.withValues(alpha: 0.12)
                               : AppColors.bgCard,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
@@ -177,7 +179,7 @@ class _RepairIssueScreenState extends State<RepairIssueScreen> {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: (issue['color'] as Color).withOpacity(0.15),
+                                color: (issue['color'] as Color).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(issue['icon'] as IconData,
@@ -285,13 +287,40 @@ class _RepairIssueScreenState extends State<RepairIssueScreen> {
       final brand = parts.isNotEmpty ? parts[0] : 'Generic';
       final model = parts.length > 1 ? parts.sublist(1).join(' ') : 'Device';
 
+      String address = 'Current Location';
+      double? lat;
+      double? lng;
+
+      try {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+          final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+          lat = position.latitude;
+          lng = position.longitude;
+
+          final placemarks = await placemarkFromCoordinates(lat, lng);
+          if (placemarks.isNotEmpty) {
+            final pm = placemarks.first;
+            address = '${pm.street ?? ""}, ${pm.locality ?? pm.subAdministrativeArea ?? ""}, ${pm.postalCode ?? ""}';
+          }
+        }
+      } catch (e) {
+        // Fallback if geolocator/geocoding fails
+        debugPrint('Location fetch failed: $e');
+      }
+
       final result = await _apiService.createOrder(
         brand: brand,
         model: model,
         issues: selectedIssues.toList(),
         total: totalPrice,
-        serviceAddress: 'Current Location', // Placeholder or get actual location
+        serviceAddress: address,
         city: 'Hyderabad',
+        serviceLat: lat,
+        serviceLng: lng,
       );
 
       if (mounted) {

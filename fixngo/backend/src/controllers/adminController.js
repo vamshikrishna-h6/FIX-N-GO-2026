@@ -1,6 +1,7 @@
 const Order = require('../models/orderModel');
 const User = require('../models/userModel');
 const Service = require('../models/serviceModel');
+const Withdrawal = require('../models/withdrawalModel');
 
 const getAllOrders = async (req, res, next) => {
   try {
@@ -96,10 +97,57 @@ const getAllUsers = async (req, res, next) => {
   }
 };
 
+// Get all technicians with full details
+const getAllTechnicians = async (req, res, next) => {
+  try {
+    const technicians = await User.find({ role: 'technician' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: technicians });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Approve a technician
+const approveTechnician = async (req, res, next) => {
+  try {
+    const tech = await User.findOne({ _id: req.params.id, role: 'technician' });
+    if (!tech) {
+      return res.status(404).json({ success: false, message: 'Technician not found' });
+    }
+    tech.isApproved = true;
+    tech.isOnline = true;
+    await tech.save();
+    res.json({ success: true, message: 'Technician approved', data: tech });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Suspend a technician
+const suspendTechnician = async (req, res, next) => {
+  try {
+    const tech = await User.findOne({ _id: req.params.id, role: 'technician' });
+    if (!tech) {
+      return res.status(404).json({ success: false, message: 'Technician not found' });
+    }
+    tech.isApproved = false;
+    tech.isOnline = false;
+    await tech.save();
+    res.json({ success: true, message: 'Technician suspended', data: tech });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllOrders,
   updateOrderStatus,
   getStats,
   getAllUsers,
   assignTechnician,
+  getAllTechnicians,
+  approveTechnician,
+  suspendTechnician,
 };

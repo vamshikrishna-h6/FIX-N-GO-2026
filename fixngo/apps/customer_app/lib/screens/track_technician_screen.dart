@@ -5,6 +5,7 @@ import '../services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import 'chat_screen.dart';
 
 class TrackTechnicianScreen extends StatefulWidget {
   final String orderId;
@@ -25,8 +26,6 @@ class _TrackTechnicianScreenState extends State<TrackTechnicianScreen>
   late Animation<double> _pulseAnim;
   
   OrderModel? _order;
-  double _techLat = 0;
-  double _techLng = 0;
   bool _isLoading = true;
 
   @override
@@ -59,12 +58,9 @@ class _TrackTechnicianScreenState extends State<TrackTechnicianScreen>
       });
 
       _socketService.onTechnicianLocation((data) {
-        if (data['orderId'] == widget.orderId) {
-          setState(() {
-            _techLat = (data['latitude'] as num).toDouble();
-            _techLng = (data['longitude'] as num).toDouble();
-          });
-        }
+        // Location data received - used for real map integration
+        // ignore: unused_local_variable
+        if (data['orderId'] == widget.orderId) setState(() {});
       });
     });
   }
@@ -187,7 +183,7 @@ class _TrackTechnicianScreenState extends State<TrackTechnicianScreen>
                                             boxShadow: [
                                               BoxShadow(
                                                 color:
-                                                    AppColors.brandBlue.withOpacity(0.5),
+                                                    AppColors.brandBlue.withValues(alpha: 0.5),
                                                 blurRadius: 16,
                                               ),
                                             ],
@@ -230,7 +226,7 @@ class _TrackTechnicianScreenState extends State<TrackTechnicianScreen>
                                       border: Border.all(color: Colors.white, width: 2),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: AppColors.statusRed.withOpacity(0.4),
+                                          color: AppColors.statusRed.withValues(alpha: 0.4),
                                           blurRadius: 12,
                                         ),
                                       ],
@@ -264,7 +260,7 @@ class _TrackTechnicianScreenState extends State<TrackTechnicianScreen>
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 14, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.bgCard.withOpacity(0.95),
+                                  color: AppColors.bgCard.withValues(alpha: 0.95),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(color: AppColors.brandGreen),
                                 ),
@@ -353,11 +349,28 @@ class _TrackTechnicianScreenState extends State<TrackTechnicianScreen>
                               ),
                               Row(
                                 children: [
-                                  _ActionButton(
-                                    icon: Icons.chat_bubble_rounded,
-                                    color: AppColors.brandBlue,
-                                    onTap: () {},
-                                  ),
+                                    _ActionButton(
+                                      icon: Icons.chat_bubble_rounded,
+                                      color: AppColors.brandBlue,
+                                      onTap: () {
+                                        if (_order != null && _order!.technicianUser != null && _order!.technicianUser!.isNotEmpty) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => ChatScreen(
+                                                orderId: widget.orderId,
+                                                recipientId: _order!.technicianUser!,
+                                                recipientName: _order!.technicianName ?? 'Technician',
+                                              ),
+                                            ),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Technician not assigned yet')),
+                                          );
+                                        }
+                                      },
+                                    ),
                                   const SizedBox(width: 10),
                                   _ActionButton(
                                     icon: Icons.phone_rounded,
@@ -437,9 +450,9 @@ class _ActionButton extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
+          color: color.withValues(alpha: 0.15),
           shape: BoxShape.circle,
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Icon(icon, color: color, size: 20),
       ),
@@ -476,14 +489,14 @@ class _StatusStep extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: isDone ? color.withOpacity(0.2) : Colors.transparent,
+                color: isDone ? color.withValues(alpha: 0.2) : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(color: color, width: 2),
               ),
               child: Icon(icon, size: 14, color: color),
             ),
             if (!isLast)
-              Container(width: 2, height: 20, color: color.withOpacity(0.4)),
+              Container(width: 2, height: 20, color: color.withValues(alpha: 0.4)),
           ],
         ),
         const SizedBox(width: 12),
@@ -510,7 +523,7 @@ class _TrackMapPainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
     final gridPaint = Paint()
-      ..color = const Color(0xFF1A2A40).withOpacity(0.5)
+      ..color = const Color(0xFF1A2A40).withValues(alpha: 0.5)
       ..strokeWidth = 0.5;
 
     for (double x = 0; x < size.width; x += 40) {
@@ -547,7 +560,7 @@ class _RoutePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.brandBlue.withOpacity(0.7)
+      ..color = AppColors.brandBlue.withValues(alpha: 0.7)
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;

@@ -1,12 +1,14 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const User = require('../models/userModel');
 const OTP = require('../models/otpModel');
 const PasswordReset = require('../models/passwordResetModel');
+const RefreshToken = require('../models/refreshTokenModel');
 const generateToken = require('../utils/generateToken');
 const { sendPasswordResetEmail, generateOTP, generateResetToken } = require('../utils/emailService');
 const { sendOtpSms, generateOTP: generateOtpSms } = require('../utils/smsService');
 
-const userResponse = (user, token) => ({
+const userResponse = (user, token, refreshToken) => ({
   _id: user._id,
   name: user.name,
   email: user.email,
@@ -17,6 +19,7 @@ const userResponse = (user, token) => ({
   pincode: user.pincode || '',
   isOnline: user.isOnline || false,
   token: token || generateToken(user._id),
+  refreshToken: refreshToken || '',
 });
 
 const registerUser = async (req, res, next) => {
@@ -50,7 +53,9 @@ const registerUser = async (req, res, next) => {
           : undefined,
     });
 
-    res.status(201).json(userResponse(user, generateToken(user._id)));
+    const accessToken = generateToken(user._id);
+    const refreshToken = await issueRefreshToken(user._id);
+    res.status(201).json(userResponse(user, accessToken, refreshToken));
   } catch (error) {
     next(error);
   }
@@ -77,7 +82,9 @@ const loginUser = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    res.json(userResponse(user, generateToken(user._id)));
+    const accessToken = generateToken(user._id);
+    const refreshToken = await issueRefreshToken(user._id);
+    res.json(userResponse(user, accessToken, refreshToken));
   } catch (error) {
     next(error);
   }
@@ -335,15 +342,79 @@ const verifyPhoneOtp = async (req, res, next) => {
           : undefined,
     });
 
+    const accessToken = generateToken(user._id);
+    const refreshToken = await issueRefreshToken(user._id);
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
-      data: userResponse(user, generateToken(user._id)),
+      data: userResponse(user, accessToken, refreshToken),
     });
   } catch (error) {
     console.error('Verify OTP error:', error);
     next(error);
   }
+};
+
+// REFRESH TOKEN ENDPOINT
+const refreshAccessToken = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ success: false, message: 'Refresh token is required' });
+    }
+
+    // Find the refresh token in DB
+    const storedToken = await RefreshToken.findOne({ token: refreshToken, revoked: false });
+    if (!storedToken) {
+      return res.status(401).json({ success: false, message: 'Invalid or expired refresh token' });
+    }
+
+    if (new Date() > storedToken.expiresAt) {
+      storedToken.revoked = true;
+      await storedToken.save();
+      return res.status(401).json({ success: false, message: 'Refresh token has expired' });
+    }
+
+    // Revoke the old token (rotation)
+    storedToken.revoked = true;
+    await storedToken.save();
+
+    // Issue new access token
+    const user = await User.findById(storedToken.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const newAccessToken = generateToken(user._id);
+
+    // Issue new refresh token
+    const newRefreshTokenStr = crypto.randomBytes(64).toString('hex');
+    await RefreshToken.create({
+      userId: user._id,
+      token: newRefreshTokenStr,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    });
+
+    res.json({
+      success: true,
+      token: newAccessToken,
+      refreshToken: newRefreshTokenStr,
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    next(error);
+  }
+};
+
+// Issue a refresh token on login/register
+const issueRefreshToken = async (userId) => {
+  const token = crypto.randomBytes(64).toString('hex');
+  await RefreshToken.create({
+    userId,
+    token,
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
+  return token;
 };
 
 module.exports = {
@@ -355,5 +426,7 @@ module.exports = {
   resetPassword,
   sendPhoneOtp,
   verifyPhoneOtp,
+  refreshAccessToken,
+  issueRefreshToken,
 };
 

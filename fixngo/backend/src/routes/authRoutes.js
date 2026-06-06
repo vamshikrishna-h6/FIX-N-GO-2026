@@ -8,6 +8,7 @@ const {
   resetPassword,
   sendPhoneOtp,
   verifyPhoneOtp,
+  refreshAccessToken,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -25,6 +26,9 @@ router.post('/reset-password', resetPassword);
 // Phone OTP endpoints
 router.post('/send-otp', sendPhoneOtp);
 router.post('/verify-otp', verifyPhoneOtp);
+
+// Token refresh
+router.post('/refresh', refreshAccessToken);
 
 module.exports = router;
 

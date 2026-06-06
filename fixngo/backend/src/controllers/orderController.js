@@ -5,25 +5,22 @@ const { emitNotification } = require('../utils/socketService');
 
 const dispatchToNearestTechnician = async (order) => {
   try {
-    // Find online technicians
-    const onlineTechs = await User.find({
+    // Find online technicians near the service location using 2dsphere index
+    const nearestTechs = await User.find({
       role: 'technician',
       isOnline: true,
-      lastLat: { $ne: null },
-      lastLng: { $ne: null },
-    });
+      location: {
+        $nearSphere: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [order.serviceLng, order.serviceLat],
+          },
+        },
+      },
+    }).limit(1);
 
-    if (onlineTechs.length === 0) return null;
-
-    // Sort by distance
-    const sortedTechs = onlineTechs
-      .map((tech) => ({
-        tech,
-        distance: haversineKm(order.serviceLat, order.serviceLng, tech.lastLat, tech.lastLng),
-      }))
-      .sort((a, b) => a.distance - b.distance);
-
-    const nearest = sortedTechs[0].tech;
+    if (nearestTechs.length === 0) return null;
+    const nearest = nearestTechs[0];
 
     // Offer to nearest
     order.technician = nearest.name;
@@ -168,6 +165,11 @@ const createOrder = async (req, res, next) => {
     } else {
       assignServiceCoords(order, `${req.user._id}-${Date.now()}`);
     }
+
+    order.location = {
+      type: 'Point',
+      coordinates: [order.serviceLng, order.serviceLat],
+    };
 
     await order.save();
 

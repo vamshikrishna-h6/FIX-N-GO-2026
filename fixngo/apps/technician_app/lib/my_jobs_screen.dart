@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'api_service.dart';
 
 class MyJobsScreen extends StatefulWidget {
+  const MyJobsScreen({super.key});
+
   @override
-  _MyJobsScreenState createState() => _MyJobsScreenState();
+  State<MyJobsScreen> createState() => _MyJobsScreenState();
 }
 
 class _MyJobsScreenState extends State<MyJobsScreen> {

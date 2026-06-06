@@ -1,9 +1,10 @@
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:flutter/foundation.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'storage_service.dart';
 
 class SocketService {
   static final SocketService _instance = SocketService._internal();
-  late IO.Socket socket;
+  late io.Socket socket;
   final StorageService _storageService = StorageService();
 
   bool get isConnected => socket.connected;
@@ -19,11 +20,11 @@ class SocketService {
       final token = await _storageService.getToken();
       // Android emulator: 10.0.2.2 maps to host machine localhost
       // Real device: Use your backend URL
-      const String serverUrl = 'http://10.0.2.2:5000'; // Emulator IP for localhost
+      const String serverUrl = 'http://10.0.2.2:5000';
 
-      socket = IO.io(
+      socket = io.io(
         serverUrl,
-        IO.OptionBuilder()
+        io.OptionBuilder()
             .setTransports(['websocket'])
             .disableAutoConnect()
             .setAuth({'token': token})
@@ -31,25 +32,25 @@ class SocketService {
       );
 
       socket.onConnect((_) {
-        print('Socket connected');
+        debugPrint('Socket connected');
         socket.emit('user-online', {});
       });
 
       socket.onDisconnect((_) {
-        print('Socket disconnected');
+        debugPrint('Socket disconnected');
       });
 
       socket.onConnectError((error) {
-        print('Connection error: $error');
+        debugPrint('Connection error: $error');
       });
 
       socket.onError((error) {
-        print('Socket error: $error');
+        debugPrint('Socket error: $error');
       });
 
       socket.connect();
     } catch (e) {
-      print('Error connecting to socket: $e');
+      debugPrint('Error connecting to socket: $e');
     }
   }
 

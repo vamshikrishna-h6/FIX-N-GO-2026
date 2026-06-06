@@ -113,7 +113,7 @@ class HomeScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.brandBlue.withOpacity(0.35),
+              color: AppColors.brandBlue.withValues(alpha: 0.35),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -130,7 +130,7 @@ class HomeScreen extends StatelessWidget {
                   'Hi Rahul',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -152,7 +152,7 @@ class HomeScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -341,10 +341,10 @@ class HomeScreen extends StatelessWidget {
                               width: 48,
                               height: 48,
                               decoration: BoxDecoration(
-                                color: AppColors.brandBlue.withOpacity(0.15),
+                                color: AppColors.brandBlue.withValues(alpha: 0.15),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: AppColors.brandBlue.withOpacity(0.3)),
+                                    color: AppColors.brandBlue.withValues(alpha: 0.3)),
                               ),
                               child: Icon(s['icon'] as IconData,
                                   color: AppColors.brandBlue, size: 22),
@@ -474,7 +474,7 @@ class _ServiceCard extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: color, size: 26),
@@ -539,7 +539,7 @@ class _ReviewCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: AppColors.brandBlue.withOpacity(0.2),
+                backgroundColor: AppColors.brandBlue.withValues(alpha: 0.2),
                 child: Text(name[0],
                     style: GoogleFonts.poppins(
                         color: AppColors.brandBlue, fontWeight: FontWeight.w700)),

@@ -370,6 +370,140 @@ const getWithdrawalHistory = async (req, res, next) => {
   }
 };
 
+// Stripe Webhook handler
+const handleStripeWebhook = async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  let event;
+
+  if (endpointSecret && sig) {
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    } catch (err) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).json({ error: `Webhook Error: ${err.message}` });
+    }
+  } else {
+    // In dev/test mode without webhook secret, parse the body directly
+    try {
+      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid webhook payload' });
+    }
+  }
+
+  // Handle the event
+  switch (event.type) {
+    case 'payment_intent.succeeded': {
+      const paymentIntent = event.data.object;
+      console.log(`[Webhook] PaymentIntent succeeded: ${paymentIntent.id}`);
+
+      // Find and update payment record
+      const payment = await Payment.findOne({ stripePaymentIntentId: paymentIntent.id });
+      if (payment && payment.status !== 'completed') {
+        payment.status = 'completed';
+        await payment.save();
+
+        // Update associated order
+        const order = await Order.findById(payment.orderId);
+        if (order) {
+          order.paymentStatus = 'collected';
+          order.stripePaymentIntentId = paymentIntent.id;
+          order.paymentMethod = 'card';
+          const { technicianCut } = require('../utils/orderHelpers');
+          order.technicianEarning = technicianCut(order.total);
+          await order.save();
+
+          if (order.technicianUser) {
+            await User.findByIdAndUpdate(order.technicianUser, {
+              $inc: {
+                'technicianMeta.walletBalance': order.technicianEarning,
+                'technicianMeta.totalEarnings': order.technicianEarning,
+              },
+            });
+          }
+        }
+      }
+      break;
+    }
+    case 'payment_intent.payment_failed': {
+      const failedIntent = event.data.object;
+      console.log(`[Webhook] PaymentIntent failed: ${failedIntent.id}`);
+
+      const failedPayment = await Payment.findOne({ stripePaymentIntentId: failedIntent.id });
+      if (failedPayment) {
+        failedPayment.status = 'failed';
+        await failedPayment.save();
+      }
+      break;
+    }
+    default:
+      console.log(`[Webhook] Unhandled event type: ${event.type}`);
+  }
+
+  res.json({ received: true });
+};
+
+// Admin: Get all withdrawals
+const getAllWithdrawals = async (req, res, next) => {
+  try {
+    const withdrawals = await Withdrawal.find()
+      .populate('technician', 'name email phone technicianMeta')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: withdrawals });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin: Approve withdrawal
+const approveWithdrawal = async (req, res, next) => {
+  try {
+    const withdrawal = await Withdrawal.findById(req.params.id);
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
+    }
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Withdrawal is not pending' });
+    }
+
+    withdrawal.status = 'approved';
+    withdrawal.processedAt = new Date();
+    await withdrawal.save();
+
+    res.json({ success: true, message: 'Withdrawal approved', data: withdrawal });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin: Reject withdrawal
+const rejectWithdrawal = async (req, res, next) => {
+  try {
+    const withdrawal = await Withdrawal.findById(req.params.id);
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
+    }
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Withdrawal is not pending' });
+    }
+
+    // Refund the held amount back to wallet
+    await User.findByIdAndUpdate(withdrawal.technician, {
+      $inc: { 'technicianMeta.walletBalance': withdrawal.amount },
+    });
+
+    withdrawal.status = 'rejected';
+    withdrawal.processedAt = new Date();
+    await withdrawal.save();
+
+    res.json({ success: true, message: 'Withdrawal rejected, funds returned', data: withdrawal });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createPaymentIntent,
   confirmPayment,
@@ -377,4 +511,9 @@ module.exports = {
   getTechnicianEarnings,
   getMonthlyEarnings,
   requestWithdrawal,
+  getWithdrawalHistory,
+  handleStripeWebhook,
+  getAllWithdrawals,
+  approveWithdrawal,
+  rejectWithdrawal,
 };

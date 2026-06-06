@@ -13,6 +13,10 @@ const userSchema = mongoose.Schema(
     isOnline: { type: Boolean, default: false },
     lastLat: { type: Number, default: null },
     lastLng: { type: Number, default: null },
+    location: {
+      type: { type: String, default: 'Point' },
+      coordinates: { type: [Number], default: [0, 0] },
+    },
     technicianMeta: {
       emoji: { type: String, default: '🛠️' },
       rating: { type: Number, default: 4.8 },
@@ -32,9 +36,12 @@ const userSchema = mongoose.Schema(
     },
     passwordResetOtp: { type: String, default: '' },
     passwordResetOtpExpiry: { type: Date, default: null },
+    fcmToken: { type: String, default: '' },
   },
   { timestamps: true }
 );
+
+userSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('User', userSchema);
 

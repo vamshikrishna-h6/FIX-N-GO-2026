@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
   @override
-  _ProfileScreenState createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -26,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/');
   }
 

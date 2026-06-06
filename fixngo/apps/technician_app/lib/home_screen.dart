@@ -3,8 +3,10 @@ import 'package:geolocator/geolocator.dart';
 import 'api_service.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -42,7 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    Position position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+    );
     await _apiService.updateLocation(position.latitude, position.longitude, true);
   }
 
@@ -79,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Switch(
                 value: _isOnline,
                 onChanged: _updateStatus,
-                activeColor: Colors.greenAccent,
+                activeThumbColor: Colors.greenAccent,
               ),
             ],
           ),

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../theme/app_theme.dart';
+import '../services/api_service.dart';
+import '../services/storage_service.dart';
 import 'finding_tech_screen.dart';
 
 class ScreenGuardScreen extends StatefulWidget {
   final String device;
-  const ScreenGuardScreen({super.key, required this.device});
+  final String orderId;
+  const ScreenGuardScreen({super.key, required this.device, this.orderId = ''});
 
   @override
   State<ScreenGuardScreen> createState() => _ScreenGuardScreenState();
@@ -13,6 +18,9 @@ class ScreenGuardScreen extends StatefulWidget {
 
 class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
   String selectedGuard = 'Tempered Glass';
+  final ApiService _apiService = ApiService();
+  final StorageService _storageService = StorageService();
+  bool _isLoading = false;
 
   final List<Map<String, dynamic>> guardTypes = [
     {
@@ -119,7 +127,7 @@ class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? (g['color'] as Color).withOpacity(0.15)
+                              ? (g['color'] as Color).withValues(alpha: 0.15)
                               : AppColors.bgCard,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
@@ -129,9 +137,11 @@ class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
                             width: isSelected ? 2 : 1,
                           ),
                           boxShadow: isSelected
-                              ? [BoxShadow(
-                                  color: (g['color'] as Color).withOpacity(0.2),
-                                  blurRadius: 12)]
+                              ? [
+                                  BoxShadow(
+                                      color: (g['color'] as Color).withValues(alpha: 0.2),
+                                      blurRadius: 12)
+                                ]
                               : [],
                         ),
                         child: Column(
@@ -143,7 +153,7 @@ class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
                                   width: 38,
                                   height: 38,
                                   decoration: BoxDecoration(
-                                    color: (g['color'] as Color).withOpacity(0.15),
+                                    color: (g['color'] as Color).withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Icon(g['icon'] as IconData,
@@ -155,7 +165,7 @@ class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.brandGreen.withOpacity(0.2),
+                                      color: AppColors.brandGreen.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text('Best',
@@ -204,9 +214,9 @@ class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.brandGreen.withOpacity(0.12),
+                  color: AppColors.brandGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.brandGreen.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.brandGreen.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -240,14 +250,7 @@ class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FindingTechScreen(),
-                      ),
-                    );
-                  },
+                  onPressed: _isLoading ? null : () => _createOrder(selected),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.brandGreen,
                     foregroundColor: Colors.white,
@@ -256,13 +259,22 @@ class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
                         borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
-                  child: Text(
-                    'Book Installation — ₹${selected['price']}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Book Installation — ₹${selected['price']}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -270,5 +282,70 @@ class _ScreenGuardScreenState extends State<ScreenGuardScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _createOrder(Map<String, dynamic> selected) async {
+    setState(() => _isLoading = true);
+    try {
+      final token = await _storageService.getToken();
+      _apiService.setToken(token);
+
+      final parts = widget.device.split(' ');
+      final brand = parts.isNotEmpty ? parts[0] : 'Generic';
+      final model = parts.length > 1 ? parts.sublist(1).join(' ') : 'Device';
+
+      String address = 'Current Location';
+      double? lat;
+      double? lng;
+
+      try {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+          final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+          lat = position.latitude;
+          lng = position.longitude;
+
+          final placemarks = await placemarkFromCoordinates(lat, lng);
+          if (placemarks.isNotEmpty) {
+            final pm = placemarks.first;
+            address = '${pm.street ?? ""}, ${pm.locality ?? pm.subAdministrativeArea ?? ""}, ${pm.postalCode ?? ""}';
+          }
+        }
+      } catch (e) {
+        debugPrint('Location fetch failed: $e');
+      }
+
+      final result = await _apiService.createOrder(
+        brand: brand,
+        model: model,
+        issues: ['Screen Guard: ${selected['name']}'],
+        total: selected['price'] as int,
+        serviceAddress: address,
+        city: 'Hyderabad',
+        serviceLat: lat,
+        serviceLng: lng,
+      );
+
+      if (mounted) {
+        final orderId = result['data']['_id'];
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FindingTechScreen(orderId: orderId),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 }

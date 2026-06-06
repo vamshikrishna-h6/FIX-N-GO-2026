@@ -87,7 +87,7 @@ class _SelectDeviceScreenState extends State<SelectDeviceScreen> {
                         ),
                         boxShadow: isSelected
                             ? [BoxShadow(
-                                color: AppColors.brandBlue.withOpacity(0.3),
+                                color: AppColors.brandBlue.withValues(alpha: 0.3),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4))]
                             : [],
@@ -156,7 +156,7 @@ class _SelectDeviceScreenState extends State<SelectDeviceScreen> {
                             ? Icons.phone_iphone_rounded
                             : Icons.smartphone_rounded,
                         size: 60,
-                        color: AppColors.brandBlue.withOpacity(0.6),
+                        color: AppColors.brandBlue.withValues(alpha: 0.6),
                       ),
                       const SizedBox(height: 8),
                       Text(

@@ -158,11 +158,11 @@ class _OrdersScreenState extends State<OrdersScreen>
             color: AppColors.bgCard,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isActive ? AppColors.brandBlue.withOpacity(0.3) : AppColors.borderColor,
+              color: isActive ? AppColors.brandBlue.withValues(alpha: 0.3) : AppColors.borderColor,
             ),
             boxShadow: isActive
                 ? [BoxShadow(
-                    color: AppColors.brandBlue.withOpacity(0.08),
+                    color: AppColors.brandBlue.withValues(alpha: 0.08),
                     blurRadius: 16)]
                 : [],
           ),
@@ -174,7 +174,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(
-                      color: (order['statusColor'] as Color).withOpacity(0.15),
+                      color: (order['statusColor'] as Color).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(order['icon'] as IconData,
@@ -212,7 +212,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: (order['statusColor'] as Color).withOpacity(0.15),
+                          color: (order['statusColor'] as Color).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

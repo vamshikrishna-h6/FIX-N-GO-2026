@@ -34,6 +34,10 @@ const orderSchema = mongoose.Schema(
     pincode: { type: String, default: '' },
     serviceLat: { type: Number, default: null },
     serviceLng: { type: Number, default: null },
+    location: {
+      type: { type: String, default: 'Point' },
+      coordinates: { type: [Number], default: [0, 0] },
+    },
     checklist: [checklistItemSchema],
     photos: {
       before: [{ type: String }],
@@ -72,6 +76,8 @@ const orderSchema = mongoose.Schema(
   },
   { timestamps: true }
 );
+
+orderSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Order', orderSchema);
 

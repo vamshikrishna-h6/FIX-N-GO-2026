@@ -129,8 +129,16 @@ const updateLocation = async (req, res, next) => {
     }
     req.user.lastLat = Number(lat);
     req.user.lastLng = Number(lng);
+    req.user.location = {
+      type: 'Point',
+      coordinates: [Number(lng), Number(lat)],
+    };
     await req.user.save();
-    res.json({ lastLat: req.user.lastLat, lastLng: req.user.lastLng });
+    res.json({
+      lastLat: req.user.lastLat,
+      lastLng: req.user.lastLng,
+      location: req.user.location,
+    });
   } catch (error) {
     next(error);
   }

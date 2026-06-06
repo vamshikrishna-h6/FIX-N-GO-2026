@@ -84,6 +84,8 @@ class ApiService {
     String? serviceAddress,
     String? city,
     String? pincode,
+    double? serviceLat,
+    double? serviceLng,
   }) async {
     return _post('/api/orders', {
       'brand': brand,
@@ -95,8 +97,14 @@ class ApiService {
       if (serviceAddress != null) 'serviceAddress': serviceAddress,
       if (city != null) 'city': city,
       if (pincode != null) 'pincode': pincode,
+      if (serviceLat != null) 'serviceLat': serviceLat,
+      if (serviceLng != null) 'serviceLng': serviceLng,
     });
   }
+
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) => _post(path, body);
+  Future<Map<String, dynamic>> get(String path) => _get(path);
+  Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> body) => _patch(path, body);
 
   Future<Map<String, dynamic>> _patch(String path, Map<String, dynamic> body) async {
     final res = await http.patch(
@@ -110,13 +118,6 @@ class ApiService {
   Future<Map<String, dynamic>> _get(String path) async {
     final res = await http.get(Uri.parse('${ApiConfig.baseUrl}$path'), headers: _headers);
     return _decode(res);
-  }
-
-  Future<List<dynamic>> _getList(String path) async {
-    final res = await http.get(Uri.parse('${ApiConfig.baseUrl}$path'), headers: _headers);
-    final data = _decode(res);
-    if (data is List) return data;
-    return [];
   }
 
   Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body) async {

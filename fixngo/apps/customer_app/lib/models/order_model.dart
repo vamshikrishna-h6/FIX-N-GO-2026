@@ -6,6 +6,7 @@ class OrderModel {
   final int total;
   final String status;
   final String? technicianName;
+  final String? technicianUser;
   final double? technicianRating;
   final String? technicianPhone;
   final String paymentStatus;
@@ -22,6 +23,7 @@ class OrderModel {
     required this.total,
     required this.status,
     this.technicianName,
+    this.technicianUser,
     this.technicianRating,
     this.technicianPhone,
     required this.paymentStatus,
@@ -40,6 +42,9 @@ class OrderModel {
       total: json['total'] ?? 0,
       status: json['status'] ?? 'pending',
       technicianName: json['technicianName'],
+      technicianUser: json['technicianUser'] is String 
+          ? json['technicianUser'] 
+          : (json['technicianUser'] is Map ? json['technicianUser']['_id'] : null),
       technicianRating: (json['technicianRating'] as num?)?.toDouble(),
       technicianPhone: json['technicianPhone'],
       paymentStatus: json['paymentStatus'] ?? 'pending',

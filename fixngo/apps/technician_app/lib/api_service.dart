@@ -51,6 +51,10 @@ class ApiService {
     }
   }
 
+  Future<List<dynamic>> getAvailableJobs() async {
+    return getIncomingOffers();
+  }
+
   Future<bool> acceptJob(String orderId) async {
     try {
       final res = await http.post(Uri.parse('$baseUrl/tech/jobs/$orderId/accept'), headers: await _getHeaders());
@@ -69,8 +73,21 @@ class ApiService {
     }
   }
 
-  Future<bool> updateLocation(double lat, double lng) async {
+  Future<Map<String, dynamic>?> getStats() async {
+    final dashboard = await getDashboard();
+    if (dashboard == null) return null;
+    return {
+      'walletBalance': dashboard['walletBalance'],
+      'totalEarnings': (dashboard['walletBalance'] ?? 0) + (dashboard['pendingEarnings'] ?? 0),
+      'completedOrdersCount': dashboard['jobsDone'],
+    };
+  }
+
+  Future<bool> updateLocation(double lat, double lng, [bool? isOnline]) async {
     try {
+      if (isOnline != null) {
+        await setOnline(isOnline);
+      }
       final res = await http.patch(
         Uri.parse('$baseUrl/tech/location'), 
         headers: await _getHeaders(),
@@ -142,5 +159,14 @@ class ApiService {
     } catch (e) {
       return false;
     }
+  }
+
+  Future<bool> updateOrderStatus(String orderId, String status) async {
+    if (status == 'completed') {
+      return completeJob(orderId);
+    } else if (status == 'in_progress' || status == 'started') {
+      return startJob(orderId);
+    }
+    return false;
   }
 }

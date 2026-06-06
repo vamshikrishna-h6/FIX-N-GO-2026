@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'api_service.dart';
 
 class EarningsScreen extends StatefulWidget {
+  const EarningsScreen({super.key});
+
   @override
-  _EarningsScreenState createState() => _EarningsScreenState();
+  State<EarningsScreen> createState() => _EarningsScreenState();
 }
 
 class _EarningsScreenState extends State<EarningsScreen> {

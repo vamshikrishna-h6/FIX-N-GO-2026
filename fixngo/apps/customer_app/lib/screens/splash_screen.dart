@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import 'auth/login_screen.dart';
 import '../theme/app_theme.dart';
 import 'main_navigation.dart';
 
@@ -35,19 +38,26 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _controller.forward();
 
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 3), () async {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            transitionDuration: const Duration(milliseconds: 600),
-            pageBuilder: (_, __, ___) => const MainNavigation(),
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-          ),
-        );
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final isLoggedIn = await authProvider.tryAutoLogin();
+        
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 600),
+              pageBuilder: (_, __, ___) =>
+                  isLoggedIn ? const MainNavigation() : const LoginScreen(),
+              transitionsBuilder: (_, anim, __, child) =>
+                  FadeTransition(opacity: anim, child: child),
+            ),
+          );
+        }
       }
     });
   }
+
 
   @override
   void dispose() {
@@ -91,7 +101,7 @@ class _SplashScreenState extends State<SplashScreen>
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.brandBlue.withOpacity(0.5),
+                              color: AppColors.brandBlue.withValues(alpha: 0.5),
                               blurRadius: 40,
                               spreadRadius: 5,
                             ),

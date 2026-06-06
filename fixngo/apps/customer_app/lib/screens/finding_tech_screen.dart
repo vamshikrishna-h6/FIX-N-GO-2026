@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
@@ -98,7 +97,7 @@ class _FindingTechScreenState extends State<FindingTechScreen>
         });
       }
     } catch (e) {
-      print('Error fetching order: $e');
+      debugPrint('Error fetching order: $e');
     }
   }
 
@@ -180,7 +179,7 @@ class _FindingTechScreenState extends State<FindingTechScreen>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: AppColors.bgCard.withOpacity(0.9),
+                              color: AppColors.bgCard.withValues(alpha: 0.9),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: AppColors.borderColor),
                             ),
@@ -233,7 +232,7 @@ class _FindingTechScreenState extends State<FindingTechScreen>
                                       height: 70 * _rippleAnim.value,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: AppColors.brandBlue.withOpacity(0.1),
+                                        color: AppColors.brandBlue.withValues(alpha: 0.1),
                                       ),
                                     ),
                                   ),
@@ -253,7 +252,7 @@ class _FindingTechScreenState extends State<FindingTechScreen>
                                           boxShadow: [
                                             BoxShadow(
                                               color: AppColors.accentCyan
-                                                  .withOpacity(0.6),
+                                                  .withValues(alpha: 0.6),
                                               blurRadius: 12,
                                               spreadRadius: 2,
                                             ),
@@ -352,8 +351,8 @@ class _TechMarker extends StatelessWidget {
         height: 44,
         decoration: BoxDecoration(
           color: isActive
-              ? AppColors.brandBlue.withOpacity(0.9)
-              : AppColors.bgCardLight.withOpacity(0.85),
+              ? AppColors.brandBlue.withValues(alpha: 0.9)
+              : AppColors.bgCardLight.withValues(alpha: 0.85),
           shape: BoxShape.circle,
           border: Border.all(
             color: isActive ? AppColors.brandBlue : AppColors.borderColor,
@@ -362,7 +361,7 @@ class _TechMarker extends StatelessWidget {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: AppColors.brandBlue.withOpacity(0.5),
+                    color: AppColors.brandBlue.withValues(alpha: 0.5),
                     blurRadius: 16,
                     spreadRadius: 2,
                   )
@@ -394,10 +393,10 @@ class _SearchingCard extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppColors.brandBlue.withOpacity(0.15),
+              color: AppColors.brandBlue.withValues(alpha: 0.15),
               shape: BoxShape.circle,
               border: Border.all(
-                  color: AppColors.brandBlue.withOpacity(0.3), width: 2),
+                  color: AppColors.brandBlue.withValues(alpha: 0.3), width: 2),
             ),
             child: const Center(
               child: SizedBox(
@@ -509,10 +508,10 @@ class _TechFoundCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.brandGreen.withOpacity(0.15),
+                  color: AppColors.brandGreen.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: AppColors.brandGreen.withOpacity(0.3)),
+                      color: AppColors.brandGreen.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   children: [
@@ -567,7 +566,7 @@ class _MapGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1A2A40).withOpacity(0.8)
+      ..color = const Color(0xFF1A2A40).withValues(alpha: 0.8)
       ..strokeWidth = 1;
 
     const step = 40.0;
@@ -580,7 +579,7 @@ class _MapGridPainter extends CustomPainter {
 
     // Draw some "road" lines
     final roadPaint = Paint()
-      ..color = const Color(0xFF1E3A5A).withOpacity(0.9)
+      ..color = const Color(0xFF1E3A5A).withValues(alpha: 0.9)
       ..strokeWidth = 12
       ..strokeCap = StrokeCap.round;
 

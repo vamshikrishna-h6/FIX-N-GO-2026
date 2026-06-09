@@ -14,7 +14,6 @@ const {
 } = require('../controllers/paymentController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
-const { adminOnly } = require('../middleware/adminMiddleware');
 
 const router = express.Router();
 
@@ -33,8 +32,8 @@ router.post('/withdraw', protect, authorize('technician'), requestWithdrawal);
 router.get('/withdraw/history', protect, authorize('technician'), getWithdrawalHistory);
 
 // Admin withdrawal management
-router.get('/admin/withdrawals', protect, adminOnly, getAllWithdrawals);
-router.patch('/admin/withdrawals/:id/approve', protect, adminOnly, approveWithdrawal);
-router.patch('/admin/withdrawals/:id/reject', protect, adminOnly, rejectWithdrawal);
+router.get('/admin/withdrawals', protect, authorize('admin'), getAllWithdrawals);
+router.patch('/admin/withdrawals/:id/approve', protect, authorize('admin'), approveWithdrawal);
+router.patch('/admin/withdrawals/:id/reject', protect, authorize('admin'), rejectWithdrawal);
 
 module.exports = router;

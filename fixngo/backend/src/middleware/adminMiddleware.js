@@ -1,8 +1,5 @@
-const adminOnly = (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required' });
-  }
-  next();
-};
+// DEPRECATED: use authorize('admin') from roleMiddleware.js instead.
+const { authorize } = require('./roleMiddleware');
+const adminOnly = authorize('admin');
 
 module.exports = { adminOnly };

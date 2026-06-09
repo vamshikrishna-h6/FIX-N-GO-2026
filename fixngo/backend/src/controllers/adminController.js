@@ -2,6 +2,8 @@ const Order = require('../models/orderModel');
 const User = require('../models/userModel');
 const Service = require('../models/serviceModel');
 const Withdrawal = require('../models/withdrawalModel');
+const { assignById } = require('../utils/technicianAssignment');
+const { notFound, badRequest } = require('../utils/responseHelpers');
 
 const getAllOrders = async (req, res, next) => {
   try {
@@ -20,13 +22,11 @@ const updateOrderStatus = async (req, res, next) => {
     const { status } = req.body;
     const allowed = ['pending', 'assigned', 'in_progress', 'completed', 'cancelled'];
     if (!status || !allowed.includes(status)) {
-      return res.status(400).json({ message: `Status must be one of: ${allowed.join(', ')}` });
+      return badRequest(res, `Status must be one of: ${allowed.join(', ')}`);
     }
 
     const order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
+    if (!order) return notFound(res, 'Order');
 
     order.status = status;
     await order.save();
@@ -58,30 +58,10 @@ const assignTechnician = async (req, res, next) => {
   try {
     const { orderId, technicianId } = req.body;
     const order = await Order.findById(orderId);
-    const tech = await User.findOne({ _id: technicianId, role: 'technician' });
+    if (!order) return notFound(res, 'Order');
 
-    if (!order || !tech) {
-      return res.status(404).json({ message: 'Order or Technician not found' });
-    }
-
-    const { technicianCut, defaultChecklist, pushStatusHistory } = require('../utils/orderHelpers');
-    const { emitNotification } = require('../utils/socketService');
-
-    order.technicianUser = tech._id;
-    order.technician = tech.name;
-    order.status = 'assigned';
-    order.dispatchStatus = 'offered';
-    order.technicianEarning = technicianCut(order.total);
-    order.checklist = defaultChecklist(order.issues);
-    pushStatusHistory(order, 'assigned', `Admin assigned to ${tech.name}`);
-    await order.save();
-
-    emitNotification(tech._id.toString(), {
-      type: 'order_assigned',
-      title: 'New Job Assigned',
-      message: `Admin has assigned you a new job: ${order.brand} ${order.model}`,
-      orderId: order._id,
-    });
+    const tech = await assignById(order, technicianId);
+    if (!tech) return notFound(res, 'Technician');
 
     res.json({ success: true, order });
   } catch (error) {
@@ -114,9 +94,7 @@ const getAllTechnicians = async (req, res, next) => {
 const approveTechnician = async (req, res, next) => {
   try {
     const tech = await User.findOne({ _id: req.params.id, role: 'technician' });
-    if (!tech) {
-      return res.status(404).json({ success: false, message: 'Technician not found' });
-    }
+    if (!tech) return notFound(res, 'Technician');
     tech.isApproved = true;
     tech.accountStatus = 'active';
     if (tech.technicianMeta?.verification) {
@@ -135,9 +113,7 @@ const approveTechnician = async (req, res, next) => {
 const suspendTechnician = async (req, res, next) => {
   try {
     const tech = await User.findOne({ _id: req.params.id, role: 'technician' });
-    if (!tech) {
-      return res.status(404).json({ success: false, message: 'Technician not found' });
-    }
+    if (!tech) return notFound(res, 'Technician');
     tech.isApproved = false;
     tech.accountStatus = 'suspended';
     if (tech.technicianMeta?.verification) {

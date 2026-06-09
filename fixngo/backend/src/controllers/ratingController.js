@@ -1,6 +1,7 @@
 const Rating = require('../models/ratingModel');
 const Order = require('../models/orderModel');
 const User = require('../models/userModel');
+const { parsePagination, paginatedResponse, notFound, forbidden, badRequest } = require('../utils/responseHelpers');
 
 // Create a rating/review
 const createRating = async (req, res, next) => {
@@ -8,50 +9,30 @@ const createRating = async (req, res, next) => {
     const { orderId, technicianId, rating, review, categories } = req.body;
 
     if (!orderId || !technicianId || !rating) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order ID, technician ID, and rating are required',
-      });
+      return badRequest(res, 'Order ID, technician ID, and rating are required');
     }
 
     if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Rating must be an integer between 1 and 5',
-      });
+      return badRequest(res, 'Rating must be an integer between 1 and 5');
     }
 
     // Verify order exists and belongs to customer
     const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found',
-      });
-    }
+    if (!order) return notFound(res, 'Order');
 
     if (order.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to rate this order',
-      });
+      return forbidden(res, 'Not authorized to rate this order');
     }
 
     // Check if order is completed
     if (order.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only rate completed orders',
-      });
+      return badRequest(res, 'Can only rate completed orders');
     }
 
     // Check if already rated
     const existingRating = await Rating.findOne({ orderId });
     if (existingRating) {
-      return res.status(400).json({
-        success: false,
-        message: 'This order has already been rated',
-      });
+      return badRequest(res, 'This order has already been rated');
     }
 
     // Create rating
@@ -94,17 +75,12 @@ const createRating = async (req, res, next) => {
 const getTechnicianRatings = async (req, res, next) => {
   try {
     const { technicianId } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = 10;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(req);
 
     // Get technician details
     const technician = await User.findById(technicianId);
     if (!technician || technician.role !== 'technician') {
-      return res.status(404).json({
-        success: false,
-        message: 'Technician not found',
-      });
+      return notFound(res, 'Technician');
     }
 
     // Get ratings
@@ -117,19 +93,7 @@ const getTechnicianRatings = async (req, res, next) => {
 
     const total = await Rating.countDocuments({ technicianId });
 
-    res.json({
-      success: true,
-      technician: {
-        _id: technician._id,
-        name: technician.name,
-        phone: technician.phone,
-        averageRating: technician.technicianMeta?.averageRating || 0,
-        totalRatings: technician.technicianMeta?.totalRatings || 0,
-      },
-      count: ratings.length,
-      total,
-      pages: Math.ceil(total / limit),
-      page,
+    paginatedResponse(res, {
       data: ratings.map((r) => ({
         _id: r._id,
         rating: r.rating,
@@ -139,6 +103,18 @@ const getTechnicianRatings = async (req, res, next) => {
         order: r.orderId,
         createdAt: r.createdAt,
       })),
+      total,
+      page,
+      limit,
+      extra: {
+        technician: {
+          _id: technician._id,
+          name: technician.name,
+          phone: technician.phone,
+          averageRating: technician.technicianMeta?.averageRating || 0,
+          totalRatings: technician.technicianMeta?.totalRatings || 0,
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -148,9 +124,7 @@ const getTechnicianRatings = async (req, res, next) => {
 // Get customer's ratings (reviews given)
 const getMyRatings = async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = 10;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(req);
 
     const ratings = await Rating.find({ customerId: req.user._id })
       .populate('technicianId', 'name phone technicianMeta')
@@ -161,12 +135,7 @@ const getMyRatings = async (req, res, next) => {
 
     const total = await Rating.countDocuments({ customerId: req.user._id });
 
-    res.json({
-      success: true,
-      count: ratings.length,
-      total,
-      pages: Math.ceil(total / limit),
-      page,
+    paginatedResponse(res, {
       data: ratings.map((r) => ({
         _id: r._id,
         technician: r.technicianId,
@@ -176,6 +145,9 @@ const getMyRatings = async (req, res, next) => {
         categories: r.categories,
         createdAt: r.createdAt,
       })),
+      total,
+      page,
+      limit,
     });
   } catch (error) {
     next(error);
@@ -189,10 +161,7 @@ const getTechnicianAverageRating = async (req, res, next) => {
 
     const technician = await User.findById(technicianId);
     if (!technician || technician.role !== 'technician') {
-      return res.status(404).json({
-        success: false,
-        message: 'Technician not found',
-      });
+      return notFound(res, 'Technician');
     }
 
     const ratings = await Rating.find({ technicianId });

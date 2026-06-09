@@ -1,6 +1,6 @@
 const express = require('express');
 const { protect } = require('../middleware/authMiddleware');
-const { technicianOnly } = require('../middleware/technicianMiddleware');
+const { authorize } = require('../middleware/roleMiddleware');
 const {
   getTechnicianProfile,
   updateTechnicianProfile,
@@ -21,7 +21,7 @@ const {
 
 const router = express.Router();
 
-router.use(protect, technicianOnly);
+router.use(protect, authorize('technician'));
 
 router.get('/dashboard', getDashboard);
 router.get('/profile', getTechnicianProfile);

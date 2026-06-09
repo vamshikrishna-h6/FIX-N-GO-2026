@@ -358,4 +358,38 @@ class ApiService {
     }
     return false;
   }
+
+  Future<List<dynamic>> getMyRatings(String technicianId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$apiBaseUrl/ratings/technician/$technicianId'),
+        headers: await _getHeaders(),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is Map<String, dynamic>) {
+          return (data['data'] as List<dynamic>?) ?? [];
+        }
+        if (data is List) return data;
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> getAverageRating(String technicianId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$apiBaseUrl/ratings/technician/$technicianId/average'),
+        headers: await _getHeaders(),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
 }

@@ -288,6 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _menuItem(Icons.document_scanner_rounded, 'Documents & KYC', () {}),
                   _menuItem(Icons.account_balance_rounded, 'Bank Details', () {}),
                   _menuItem(Icons.notifications_rounded, 'Notification Settings', () {}),
+                  _menuItem(Icons.star_rounded, 'My Reviews', () => Navigator.pushNamed(context, '/ratings')),
                   const SizedBox(height: 16),
                   const SectionLabel('Support'),
                   _menuItem(Icons.help_rounded, 'Help & Support', () => Navigator.pushNamed(context, '/support')),

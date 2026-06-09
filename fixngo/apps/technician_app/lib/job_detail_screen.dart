@@ -241,6 +241,15 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                           ),
                           Row(
                             children: [
+                              _actionBtn(Icons.chat_rounded, AppColors.green, () {
+                                final customerId = _job?['customerId'] ?? _job?['customer'] ?? '';
+                                Navigator.pushNamed(context, '/chat', arguments: {
+                                  'orderId': _job?['_id'] ?? '',
+                                  'recipientId': customerId is Map ? customerId['_id'] ?? '' : customerId.toString(),
+                                  'recipientName': customerName,
+                                });
+                              }),
+                              const SizedBox(width: 8),
                               _actionBtn(Icons.call_rounded, AppColors.green, () {}),
                               const SizedBox(width: 8),
                               _actionBtn(Icons.navigation_rounded, AppColors.orange, () {}),

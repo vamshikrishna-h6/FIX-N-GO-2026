@@ -1,3 +1,6 @@
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.warn('STRIPE_SECRET_KEY is not set — Stripe operations will use a placeholder key and fail against the live API');
+}
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_fake');
 const Payment = require('../models/paymentModel');
 const Withdrawal = require('../models/withdrawalModel');
@@ -122,8 +125,15 @@ const confirmPayment = async (req, res, next) => {
         const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
         paymentSucceeded = paymentIntent.status === 'succeeded';
       } catch (stripeError) {
-        console.log(`[MOCK] Stripe error (using mock mode):`, stripeError.message);
-        // In case Stripe fails, accept in mock mode
+        console.error('Stripe payment retrieval failed:', stripeError.message);
+        if (process.env.NODE_ENV === 'production') {
+          return res.status(502).json({
+            success: false,
+            message: 'Unable to verify payment with Stripe. Please try again later.',
+          });
+        }
+        // Only accept in mock mode outside production
+        console.warn('[DEV] Accepting payment in mock mode due to Stripe error');
         paymentSucceeded = true;
       }
     }
@@ -394,52 +404,55 @@ const handleStripeWebhook = async (req, res) => {
   }
 
   // Handle the event
-  switch (event.type) {
-    case 'payment_intent.succeeded': {
-      const paymentIntent = event.data.object;
-      console.log(`[Webhook] PaymentIntent succeeded: ${paymentIntent.id}`);
+  try {
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object;
+        console.log(`[Webhook] PaymentIntent succeeded: ${paymentIntent.id}`);
 
-      // Find and update payment record
-      const payment = await Payment.findOne({ stripePaymentIntentId: paymentIntent.id });
-      if (payment && payment.status !== 'completed') {
-        payment.status = 'completed';
-        await payment.save();
+        const payment = await Payment.findOne({ stripePaymentIntentId: paymentIntent.id });
+        if (payment && payment.status !== 'completed') {
+          payment.status = 'completed';
+          await payment.save();
 
-        // Update associated order
-        const order = await Order.findById(payment.orderId);
-        if (order) {
-          order.paymentStatus = 'collected';
-          order.stripePaymentIntentId = paymentIntent.id;
-          order.paymentMethod = 'card';
-          const { technicianCut } = require('../utils/orderHelpers');
-          order.technicianEarning = technicianCut(order.total);
-          await order.save();
+          const order = await Order.findById(payment.orderId);
+          if (order) {
+            order.paymentStatus = 'collected';
+            order.stripePaymentIntentId = paymentIntent.id;
+            order.paymentMethod = 'card';
+            const { technicianCut } = require('../utils/orderHelpers');
+            order.technicianEarning = technicianCut(order.total);
+            await order.save();
 
-          if (order.technicianUser) {
-            await User.findByIdAndUpdate(order.technicianUser, {
-              $inc: {
-                'technicianMeta.walletBalance': order.technicianEarning,
-                'technicianMeta.totalEarnings': order.technicianEarning,
-              },
-            });
+            if (order.technicianUser) {
+              await User.findByIdAndUpdate(order.technicianUser, {
+                $inc: {
+                  'technicianMeta.walletBalance': order.technicianEarning,
+                  'technicianMeta.totalEarnings': order.technicianEarning,
+                },
+              });
+            }
           }
         }
+        break;
       }
-      break;
-    }
-    case 'payment_intent.payment_failed': {
-      const failedIntent = event.data.object;
-      console.log(`[Webhook] PaymentIntent failed: ${failedIntent.id}`);
+      case 'payment_intent.payment_failed': {
+        const failedIntent = event.data.object;
+        console.log(`[Webhook] PaymentIntent failed: ${failedIntent.id}`);
 
-      const failedPayment = await Payment.findOne({ stripePaymentIntentId: failedIntent.id });
-      if (failedPayment) {
-        failedPayment.status = 'failed';
-        await failedPayment.save();
+        const failedPayment = await Payment.findOne({ stripePaymentIntentId: failedIntent.id });
+        if (failedPayment) {
+          failedPayment.status = 'failed';
+          await failedPayment.save();
+        }
+        break;
       }
-      break;
+      default:
+        console.log(`[Webhook] Unhandled event type: ${event.type}`);
     }
-    default:
-      console.log(`[Webhook] Unhandled event type: ${event.type}`);
+  } catch (dbError) {
+    console.error(`[Webhook] Error processing ${event.type}:`, dbError.message);
+    return res.status(500).json({ error: 'Webhook processing failed' });
   }
 
   res.json({ received: true });

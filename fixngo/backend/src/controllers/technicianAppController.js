@@ -7,6 +7,21 @@ const {
   pushStatusHistory,
   formatOrderForTech,
 } = require('../utils/orderHelpers');
+const { notFound, forbidden, badRequest } = require('../utils/responseHelpers');
+
+const orderBelongsToTech = (order, techId) =>
+  order.technicianUser && order.technicianUser.toString() === techId.toString();
+
+/**
+ * Find an order by ID and verify ownership by the requesting technician.
+ * Returns the order or sends an error response and returns null.
+ */
+const findTechOrder = async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) { notFound(res, 'Job'); return null; }
+  if (!orderBelongsToTech(order, req.user._id)) { forbidden(res, 'Not your job'); return null; }
+  return order;
+};
 
 const getTechnicianProfile = async (req, res, next) => {
   try {
@@ -65,9 +80,6 @@ const setOnlineStatus = async (req, res, next) => {
   }
 };
 
-const orderBelongsToTech = (order, techId) =>
-  order.technicianUser && order.technicianUser.toString() === techId.toString();
-
 const getJobs = async (req, res, next) => {
   try {
     const { status = 'active' } = req.query;
@@ -110,11 +122,9 @@ const getIncomingOffers = async (req, res, next) => {
 
 const getJobById = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id).populate('user', 'name phone');
-    if (!order) return res.status(404).json({ message: 'Job not found' });
-    if (!orderBelongsToTech(order, req.user._id)) {
-      return res.status(403).json({ message: 'Not your job' });
-    }
+    const order = await findTechOrder(req, res);
+    if (!order) return;
+    await order.populate('user', 'name phone');
     res.json(formatOrderForTech(order, req.user));
   } catch (error) {
     next(error);
@@ -146,13 +156,10 @@ const updateLocation = async (req, res, next) => {
 
 const acceptJob = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Job not found' });
-    if (!orderBelongsToTech(order, req.user._id)) {
-      return res.status(403).json({ message: 'Not your job' });
-    }
+    const order = await findTechOrder(req, res);
+    if (!order) return;
     if (order.dispatchStatus !== 'offered') {
-      return res.status(400).json({ message: 'Job is not available to accept' });
+      return badRequest(res, 'Job is not available to accept');
     }
 
     order.dispatchStatus = 'accepted';
@@ -176,11 +183,8 @@ const acceptJob = async (req, res, next) => {
 
 const declineJob = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Job not found' });
-    if (!orderBelongsToTech(order, req.user._id)) {
-      return res.status(403).json({ message: 'Not your job' });
-    }
+    const order = await findTechOrder(req, res);
+    if (!order) return;
 
     order.dispatchStatus = 'declined';
     order.technicianUser = null;
@@ -196,11 +200,8 @@ const declineJob = async (req, res, next) => {
 
 const startJob = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Job not found' });
-    if (!orderBelongsToTech(order, req.user._id)) {
-      return res.status(403).json({ message: 'Not your job' });
-    }
+    const order = await findTechOrder(req, res);
+    if (!order) return;
 
     order.status = 'in_progress';
     pushStatusHistory(order, 'in_progress', 'Technician started job');
@@ -217,14 +218,11 @@ const updateChecklist = async (req, res, next) => {
   try {
     const { checklist } = req.body;
     if (!Array.isArray(checklist)) {
-      return res.status(400).json({ message: 'checklist array required' });
+      return badRequest(res, 'checklist array required');
     }
 
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Job not found' });
-    if (!orderBelongsToTech(order, req.user._id)) {
-      return res.status(403).json({ message: 'Not your job' });
-    }
+    const order = await findTechOrder(req, res);
+    if (!order) return;
 
     order.checklist = checklist;
     await order.save();
@@ -236,15 +234,12 @@ const updateChecklist = async (req, res, next) => {
 
 const completeJob = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Job not found' });
-    if (!orderBelongsToTech(order, req.user._id)) {
-      return res.status(403).json({ message: 'Not your job' });
-    }
+    const order = await findTechOrder(req, res);
+    if (!order) return;
 
     const allDone = (order.checklist || []).every((item) => item.done);
     if (!allDone && order.checklist?.length) {
-      return res.status(400).json({ message: 'Complete all checklist items first' });
+      return badRequest(res, 'Complete all checklist items first');
     }
 
     order.status = 'completed';
@@ -264,11 +259,8 @@ const completeJob = async (req, res, next) => {
 
 const collectPayment = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Job not found' });
-    if (!orderBelongsToTech(order, req.user._id)) {
-      return res.status(403).json({ message: 'Not your job' });
-    }
+    const order = await findTechOrder(req, res);
+    if (!order) return;
 
     order.paymentStatus = 'collected';
     if (order.status !== 'completed') {

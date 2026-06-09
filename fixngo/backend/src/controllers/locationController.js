@@ -1,24 +1,10 @@
 const axios = require('axios');
 const Order = require('../models/orderModel');
 const User = require('../models/userModel');
+const { haversineKm } = require('../utils/orderHelpers');
 
 // Google Maps API Key
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyDemoKey123'; // Demo key for now
-
-// Calculate distance between two coordinates (Haversine formula)
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Earth's radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
 
 // Get nearby orders for technician
 const getNearbyOrders = async (req, res, next) => {
@@ -40,7 +26,7 @@ const getNearbyOrders = async (req, res, next) => {
     const nearbyOrders = orders
       .map((order) => {
         if (order.serviceLat && order.serviceLng) {
-          const distance = calculateDistance(
+          const distance = haversineKm(
             latitude,
             longitude,
             order.serviceLat,
@@ -219,7 +205,7 @@ const getRoute = async (req, res, next) => {
       }
     } catch (apiError) {
       // Return mock route if API fails
-      const mockDistance = calculateDistance(startLat, startLng, endLat, endLng);
+      const mockDistance = haversineKm(startLat, startLng, endLat, endLng);
       res.status(200).json({
         success: true,
         data: {
@@ -280,7 +266,6 @@ const updateTechnicianLocation = async (req, res, next) => {
 };
 
 module.exports = {
-  calculateDistance,
   getNearbyOrders,
   getLocationSuggestions,
   getPlaceDetails,

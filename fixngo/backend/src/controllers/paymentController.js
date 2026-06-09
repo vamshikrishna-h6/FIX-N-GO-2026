@@ -3,6 +3,7 @@ const Payment = require('../models/paymentModel');
 const Withdrawal = require('../models/withdrawalModel');
 const Order = require('../models/orderModel');
 const User = require('../models/userModel');
+const { parsePagination, paginatedResponse, notFound, forbidden, badRequest } = require('../utils/responseHelpers');
 
 // Create Stripe Payment Intent
 const createPaymentIntent = async (req, res, next) => {
@@ -10,33 +11,19 @@ const createPaymentIntent = async (req, res, next) => {
     const { orderId, amount } = req.body;
 
     if (!orderId || !amount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order ID and amount are required',
-      });
+      return badRequest(res, 'Order ID and amount are required');
     }
 
     if (amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Amount must be greater than 0',
-      });
+      return badRequest(res, 'Amount must be greater than 0');
     }
 
     // Verify order exists and belongs to customer
     const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found',
-      });
-    }
+    if (!order) return notFound(res, 'Order');
 
     if (order.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to pay for this order',
-      });
+      return forbidden(res, 'Not authorized to pay for this order');
     }
 
     // Convert to paise (Stripe uses smallest currency unit)
@@ -86,27 +73,16 @@ const confirmPayment = async (req, res, next) => {
     const { paymentIntentId, paymentId, orderId } = req.body;
 
     if (!paymentIntentId || !paymentId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment intent ID and payment ID are required',
-      });
+      return badRequest(res, 'Payment intent ID and payment ID are required');
     }
 
     // Get payment from DB
     const payment = await Payment.findById(paymentId);
-    if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment record not found',
-      });
-    }
+    if (!payment) return notFound(res, 'Payment record');
 
     // Verify payment belongs to user
     if (payment.customerId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized',
-      });
+      return forbidden(res);
     }
 
     // In test/mock mode, accept any payment intent starting with pi_test
@@ -185,9 +161,7 @@ const confirmPayment = async (req, res, next) => {
 // Get payment history
 const getPaymentHistory = async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = 10;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(req);
 
     const payments = await Payment.find({ customerId: req.user._id })
       .populate('orderId', 'brand model issues total')
@@ -197,12 +171,7 @@ const getPaymentHistory = async (req, res, next) => {
 
     const total = await Payment.countDocuments({ customerId: req.user._id });
 
-    res.json({
-      success: true,
-      count: payments.length,
-      total,
-      pages: Math.ceil(total / limit),
-      page,
+    paginatedResponse(res, {
       data: payments.map((p) => ({
         _id: p._id,
         orderId: p.orderId?._id,
@@ -212,6 +181,9 @@ const getPaymentHistory = async (req, res, next) => {
         paymentMethod: p.paymentMethod,
         createdAt: p.createdAt,
       })),
+      total,
+      page,
+      limit,
     });
   } catch (error) {
     next(error);
@@ -222,10 +194,7 @@ const getPaymentHistory = async (req, res, next) => {
 const getTechnicianEarnings = async (req, res, next) => {
   try {
     if (req.user.role !== 'technician') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only technicians can access this endpoint',
-      });
+      return forbidden(res, 'Only technicians can access this endpoint');
     }
 
     const completedOrders = await Order.find({
@@ -255,10 +224,7 @@ const getTechnicianEarnings = async (req, res, next) => {
 const getMonthlyEarnings = async (req, res, next) => {
   try {
     if (req.user.role !== 'technician') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only technicians can access this endpoint',
-      });
+      return forbidden(res, 'Only technicians can access this endpoint');
     }
 
     const completedOrders = await Order.find({
@@ -303,35 +269,23 @@ const getMonthlyEarnings = async (req, res, next) => {
 const requestWithdrawal = async (req, res, next) => {
   try {
     if (req.user.role !== 'technician') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only technicians can request withdrawals',
-      });
+      return forbidden(res, 'Only technicians can request withdrawals');
     }
 
     const { amount, bankAccount } = req.body;
 
     if (!amount || !bankAccount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Amount and bank account details are required',
-      });
+      return badRequest(res, 'Amount and bank account details are required');
     }
 
     if (amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Amount must be greater than 0',
-      });
+      return badRequest(res, 'Amount must be greater than 0');
     }
 
     const user = await User.findById(req.user._id);
 
     if (user.technicianMeta.walletBalance < amount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Insufficient wallet balance',
-      });
+      return badRequest(res, 'Insufficient wallet balance');
     }
 
     // Create withdrawal record
@@ -461,11 +415,9 @@ const getAllWithdrawals = async (req, res, next) => {
 const approveWithdrawal = async (req, res, next) => {
   try {
     const withdrawal = await Withdrawal.findById(req.params.id);
-    if (!withdrawal) {
-      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
-    }
+    if (!withdrawal) return notFound(res, 'Withdrawal');
     if (withdrawal.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Withdrawal is not pending' });
+      return badRequest(res, 'Withdrawal is not pending');
     }
 
     withdrawal.status = 'approved';
@@ -482,11 +434,9 @@ const approveWithdrawal = async (req, res, next) => {
 const rejectWithdrawal = async (req, res, next) => {
   try {
     const withdrawal = await Withdrawal.findById(req.params.id);
-    if (!withdrawal) {
-      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
-    }
+    if (!withdrawal) return notFound(res, 'Withdrawal');
     if (withdrawal.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Withdrawal is not pending' });
+      return badRequest(res, 'Withdrawal is not pending');
     }
 
     // Refund the held amount back to wallet

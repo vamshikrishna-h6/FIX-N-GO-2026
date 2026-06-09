@@ -1,8 +1,5 @@
-const technicianOnly = (req, res, next) => {
-  if (!req.user || req.user.role !== 'technician') {
-    return res.status(403).json({ message: 'Technician access only' });
-  }
-  next();
-};
+// DEPRECATED: use authorize('technician') from roleMiddleware.js instead.
+const { authorize } = require('./roleMiddleware');
+const technicianOnly = authorize('technician');
 
 module.exports = { technicianOnly };

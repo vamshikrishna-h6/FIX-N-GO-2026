@@ -1,70 +1,8 @@
 const Order = require('../models/orderModel');
 const User = require('../models/userModel');
 const { defaultChecklist, technicianCut, pushStatusHistory, assignServiceCoords, formatOrderForTech, haversineKm } = require('../utils/orderHelpers');
-const { emitNotification } = require('../utils/socketService');
-
-const dispatchToNearestTechnician = async (order) => {
-  try {
-    // Find online technicians near the service location using 2dsphere index
-    const nearestTechs = await User.find({
-      role: 'technician',
-      isOnline: true,
-      location: {
-        $nearSphere: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [order.serviceLng, order.serviceLat],
-          },
-        },
-      },
-    }).limit(1);
-
-    if (nearestTechs.length === 0) return null;
-    const nearest = nearestTechs[0];
-
-    // Offer to nearest
-    order.technician = nearest.name;
-    order.technicianUser = nearest._id;
-    order.dispatchStatus = 'offered';
-    order.status = 'assigned';
-    order.technicianEarning = technicianCut(order.total);
-    order.checklist = defaultChecklist(order.issues);
-    pushStatusHistory(order, 'assigned', `System auto-dispatched to ${nearest.name}`);
-    await order.save();
-
-    // Notify via socket
-    emitNotification(nearest._id.toString(), {
-      type: 'new_order_offer',
-      title: 'New Job Available!',
-      message: `A new repair job for ${order.brand} ${order.model} is available near you.`,
-      orderId: order._id,
-    });
-
-    return nearest;
-  } catch (error) {
-    console.error('Auto-dispatch error:', error);
-    return null;
-  }
-};
-
-const assignTechnicianToOrder = async (order, technicianName) => {
-  if (!technicianName) return;
-
-  const techUser = await User.findOne({
-    role: 'technician',
-    name: new RegExp(`^${technicianName.trim()}$`, 'i'),
-  });
-
-  if (!techUser) return;
-
-  order.technician = techUser.name;
-  order.technicianUser = techUser._id;
-  order.dispatchStatus = 'offered';
-  order.status = 'assigned';
-  order.technicianEarning = technicianCut(order.total);
-  order.checklist = defaultChecklist(order.issues);
-  pushStatusHistory(order, 'assigned', `Offered to ${techUser.name}`);
-};
+const { assignByName, dispatchToNearest } = require('../utils/technicianAssignment');
+const { parsePagination, notFound, forbidden, badRequest } = require('../utils/responseHelpers');
 
 const formatOrderForCustomer = (order) => {
   const tech = order.technicianUser;
@@ -175,10 +113,10 @@ const createOrder = async (req, res, next) => {
 
     // Assign technician if provided, otherwise auto-dispatch
     if (technician) {
-      await assignTechnicianToOrder(order, technician);
+      await assignByName(order, technician);
       await order.save();
     } else {
-      await dispatchToNearestTechnician(order);
+      await dispatchToNearest(order);
     }
 
     // Populate and return
@@ -205,14 +143,12 @@ const getOrderById = async (req, res, next) => {
       'name phone technicianMeta'
     );
 
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
+    if (!order) return notFound(res, 'Order');
 
     // Authorization check
     if (order.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       if (order.technicianUser?.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ success: false, message: 'Not authorized' });
+        return forbidden(res);
       }
     }
 
@@ -229,7 +165,7 @@ const getOrderById = async (req, res, next) => {
 const acceptOrder = async (req, res, next) => {
   try {
     if (req.user.role !== 'technician') {
-      return res.status(403).json({ success: false, message: 'Only technicians can accept orders' });
+      return forbidden(res, 'Only technicians can accept orders');
     }
 
     const order = await Order.findById(req.params.id).populate(
@@ -237,15 +173,11 @@ const acceptOrder = async (req, res, next) => {
       'name phone technicianMeta'
     );
 
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
+    if (!order) return notFound(res, 'Order');
 
     // Verify order is in offered or pending state
     if (!['pending', 'assigned'].includes(order.status)) {
-      return res
-        .status(400)
-        .json({ success: false, message: `Cannot accept order with status: ${order.status}` });
+      return badRequest(res, `Cannot accept order with status: ${order.status}`);
     }
 
     // Update order
@@ -284,21 +216,16 @@ const acceptOrder = async (req, res, next) => {
 const rejectOrder = async (req, res, next) => {
   try {
     if (req.user.role !== 'technician') {
-      return res.status(403).json({ success: false, message: 'Only technicians can reject orders' });
+      return forbidden(res, 'Only technicians can reject orders');
     }
 
     const order = await Order.findById(req.params.id);
 
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
+    if (!order) return notFound(res, 'Order');
 
     // Verify order is in offered state
     if (order.status !== 'assigned' || order.dispatchStatus !== 'offered') {
-      return res.status(400).json({
-        success: false,
-        message: 'Order is not available for rejection',
-      });
+      return badRequest(res, 'Order is not available for rejection');
     }
 
     // Reset to pending
@@ -329,24 +256,20 @@ const updateOrderStatus = async (req, res, next) => {
     const validStatuses = ['pending', 'assigned', 'in_progress', 'completed', 'cancelled'];
 
     if (!validStatuses.includes(status)) {
-      return res
-        .status(400)
-        .json({ success: false, message: `Invalid status: ${status}` });
+      return badRequest(res, `Invalid status: ${status}`);
     }
 
     const order = await Order.findById(req.params.id);
 
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
+    if (!order) return notFound(res, 'Order');
 
     // Authorization check
     if (req.user.role === 'customer' && order.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
+      return forbidden(res);
     }
 
     if (req.user.role === 'technician' && order.technicianUser?.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
+      return forbidden(res);
     }
 
     // Validate status transition
@@ -360,10 +283,7 @@ const updateOrderStatus = async (req, res, next) => {
     };
 
     if (!statusFlow[currentStatus]?.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot transition from ${currentStatus} to ${status}`,
-      });
+      return badRequest(res, `Cannot transition from ${currentStatus} to ${status}`);
     }
 
     // Update status
@@ -391,16 +311,11 @@ const updateOrderStatus = async (req, res, next) => {
 const getAvailableOrders = async (req, res, next) => {
   try {
     if (req.user.role !== 'technician') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only technicians can access this endpoint',
-      });
+      return forbidden(res, 'Only technicians can access this endpoint');
     }
 
-    const { radius = 50 } = req.query; // radius in km
-    const page = parseInt(req.query.page) || 1;
-    const limit = 10;
-    const skip = (page - 1) * limit;
+    const { radius = 50 } = req.query;
+    const { page, limit, skip } = parsePagination(req);
 
     // Get technician's location
     const techLat = req.user.lastLat;
@@ -449,10 +364,7 @@ const getAvailableOrders = async (req, res, next) => {
 const getTechnicianOrders = async (req, res, next) => {
   try {
     if (req.user.role !== 'technician') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only technicians can access this endpoint',
-      });
+      return forbidden(res, 'Only technicians can access this endpoint');
     }
 
     const { status } = req.query;

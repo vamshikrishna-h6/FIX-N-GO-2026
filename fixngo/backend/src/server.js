@@ -36,7 +36,12 @@ app.use(
     origin: (origin, callback) => {
       // Allow server-to-server (no origin) in dev only
       if (!origin && process.env.NODE_ENV !== 'production') return callback(null, true);
+      // Allow allowedOrigins from env
       if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow any localhost/127.0.0.1 in development
+      if (process.env.NODE_ENV !== 'production' && origin && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))) {
+        return callback(null, true);
+      }
       callback(new Error(`CORS blocked: ${origin}`));
     },
     credentials: true,

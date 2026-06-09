@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/locale_provider.dart';
+import '../l10n/app_localizations.dart';
 import 'auth/login_screen.dart';
 import 'help_faq_screen.dart';
 import 'language_screen.dart';
@@ -99,6 +101,8 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final langCode = context.watch<LocaleProvider>().languageCode.toUpperCase();
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
         final profile = auth.userProfile ?? {};
@@ -129,7 +133,7 @@ class ProfileScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Profile',
+                            Text(l10n.profile,
                                 style: GoogleFonts.poppins(
                                   fontSize: 26,
                                   fontWeight: FontWeight.w800,
@@ -203,13 +207,13 @@ class ProfileScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _StatItem(value: '7', label: 'Repairs'),
+                            _StatItem(value: '7', label: l10n.repairs),
                             Container(
                                 width: 1, height: 36, color: AppColors.borderColor),
-                            _StatItem(value: '₹3,495', label: 'Saved'),
+                            _StatItem(value: '₹3,495', label: l10n.saved),
                             Container(
                                 width: 1, height: 36, color: AppColors.borderColor),
-                            _StatItem(value: '4.9★', label: 'Rating'),
+                            _StatItem(value: '4.9★', label: l10n.rating),
                           ],
                         ),
                       ],
@@ -222,53 +226,53 @@ class ProfileScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _MenuSection(
-                          title: 'Account',
+                          title: l10n.account,
                           items: [
                             _MenuItem(
                                 icon: Icons.person_outline_rounded,
-                                label: 'Personal Info',
+                                label: l10n.personalInfo,
                                 onTap: () => _showEditProfileDialog(context, auth)),
                             _MenuItem(
                                 icon: Icons.location_on_outlined,
-                                label: 'Saved Addresses',
+                                label: l10n.savedAddresses,
                                 badge: '2',
                                 onTap: () => Navigator.push(context,
                                     MaterialPageRoute(builder: (_) => const SavedAddressesScreen()))),
                             _MenuItem(
                                 icon: Icons.payment_rounded,
-                                label: 'Payment Methods',
+                                label: l10n.paymentMethods,
                                 onTap: () => Navigator.push(context,
                                     MaterialPageRoute(builder: (_) => const PaymentMethodsScreen()))),
                           ],
                         ),
                         const SizedBox(height: 20),
                         _MenuSection(
-                          title: 'Support',
+                          title: l10n.support,
                           items: [
                             _MenuItem(
                                 icon: Icons.help_outline_rounded,
-                                label: 'Help & FAQ',
+                                label: l10n.helpFaq,
                                 onTap: () => Navigator.push(context,
                                     MaterialPageRoute(builder: (_) => const HelpFaqScreen()))),
                             _MenuItem(
                                 icon: Icons.chat_bubble_outline_rounded,
-                                label: 'Chat with Support',
+                                label: l10n.chatSupport,
                                 onTap: () => Navigator.push(context,
                                     MaterialPageRoute(builder: (_) => const SupportChatScreen()))),
                             _MenuItem(
                                 icon: Icons.star_outline_rounded,
-                                label: 'Rate the App',
+                                label: l10n.rateApp,
                                 onTap: () => Navigator.push(context,
                                     MaterialPageRoute(builder: (_) => const RateAppScreen()))),
                           ],
                         ),
                         const SizedBox(height: 20),
                         _MenuSection(
-                          title: 'Preferences',
+                          title: l10n.preferences,
                           items: [
                             _MenuItem(
                                 icon: Icons.notifications_outlined,
-                                label: 'Notifications',
+                                label: l10n.notifications,
                                 trailing: Switch(
                                   value: true,
                                   onChanged: (_) {},
@@ -279,8 +283,8 @@ class ProfileScreen extends StatelessWidget {
                                     MaterialPageRoute(builder: (_) => const NotificationsScreen()))),
                             _MenuItem(
                                 icon: Icons.language_rounded,
-                                label: 'Language',
-                                badge: 'EN',
+                                label: l10n.language,
+                                badge: langCode,
                                 onTap: () => Navigator.push(context,
                                     MaterialPageRoute(builder: (_) => const LanguageScreen()))),
                           ],
@@ -312,7 +316,7 @@ class ProfileScreen extends StatelessWidget {
                                 const Icon(Icons.logout_rounded,
                                     color: AppColors.statusRed, size: 20),
                                 const SizedBox(width: 10),
-                                Text('Log Out',
+                                Text(l10n.logout,
                                     style: GoogleFonts.poppins(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
@@ -324,7 +328,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Center(
-                          child: Text('Fix-N-Go v1.0.0',
+                          child: Text(l10n.version,
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 color: AppColors.textMuted,

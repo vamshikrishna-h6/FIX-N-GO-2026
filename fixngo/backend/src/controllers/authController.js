@@ -111,6 +111,10 @@ const registerUser = async (req, res, next) => {
     const refreshToken = await issueRefreshToken(user._id);
     res.status(201).json(userResponse(user, accessToken, refreshToken));
   } catch (error) {
+    // Handle MongoDB duplicate key error (race condition on unique email index)
+    if (error.code === 11000) {
+      return res.status(409).json({ message: 'User already exists' });
+    }
     next(error);
   }
 };

@@ -7,9 +7,11 @@ class AuthProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
   bool _isAuthenticated = false;
   Map<String, dynamic>? _userProfile;
+  String? _errorMessage;
 
   bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get userProfile => _userProfile;
+  String? get errorMessage => _errorMessage;
 
   Future<bool> tryAutoLogin() async {
     try {
@@ -51,6 +53,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<bool> register(String name, String email, String password) async {
     try {
+      _errorMessage = null;
       final data = await _apiService.register(name, email, password);
       final token = data['token'] as String;
       final emailNorm = email.trim().toLowerCase();
@@ -58,10 +61,17 @@ class AuthProvider with ChangeNotifier {
       await _storageService.saveSession(token: token, name: name, email: emailNorm);
       _apiService.setToken(token);
       _isAuthenticated = true;
-      await fetchProfile();
+      
+      final profileFetched = await fetchProfile();
+      if (!profileFetched) {
+        _errorMessage = 'Registration successful, but failed to fetch profile.';
+      }
+      
       notifyListeners();
       return true;
     } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
       return false;
     }
   }

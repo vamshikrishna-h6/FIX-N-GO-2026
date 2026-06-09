@@ -49,9 +49,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           MaterialPageRoute(builder: (_) => const MainNavigation()),
         );
       } else {
+        final errorMsg = authProvider.errorMessage ?? 'Registration failed. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration failed. Email might already exist.'),
+          SnackBar(
+            content: Text(errorMsg),
             backgroundColor: AppColors.statusRed,
           ),
         );

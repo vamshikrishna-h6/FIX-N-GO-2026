@@ -19,7 +19,8 @@ const storage = multer.diskStorage({
     cb(null, path.join(__dirname, '../../temp'));
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}_${file.originalname}`);
+    const safeName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, `${Date.now()}_${safeName}`);
   },
 });
 

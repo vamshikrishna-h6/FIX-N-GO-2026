@@ -47,9 +47,9 @@ const uploadServicePhoto = async (req, res, next) => {
       });
     }
 
-    // Generate unique filename
     const timestamp = Date.now();
-    const fileName = `${orderId}_${timestamp}_${req.file.originalname}`;
+    const safeName = path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileName = `${orderId}_${timestamp}_${safeName}`;
     const filePath = path.join(uploadDir, fileName);
 
     // Move file to uploads directory

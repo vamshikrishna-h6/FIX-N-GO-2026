@@ -14,11 +14,11 @@ const sendOtpSms = async (phoneNumber, otp) => {
     // Ensure phone number is in E.164 format
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
-    console.log(`Sending OTP SMS to ${formattedPhone}: ${otp}`);
+    console.log(`Sending OTP SMS to ${formattedPhone}`);
 
     // If Twilio is not configured, just log and return success (for development)
     if (!client) {
-      console.log(`[MOCK SMS] OTP for ${formattedPhone}: ${otp}`);
+      console.log(`[MOCK SMS] OTP sent to ${formattedPhone}`);
       return { success: true, message: 'OTP sent successfully (mock mode)', sid: `mock_${Date.now()}` };
     }
 

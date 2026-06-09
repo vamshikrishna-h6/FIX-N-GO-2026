@@ -47,7 +47,7 @@ const sendPasswordResetEmail = async (email, otp, userName) => {
     };
 
     if (!process.env.SMTP_USER) {
-      console.log(`[MOCK EMAIL] Password reset OTP for ${email}: ${otp}`);
+      console.log(`[MOCK EMAIL] Password reset OTP sent to ${email}`);
       return { success: true, message: 'Reset email sent (mock mode)' };
     }
 

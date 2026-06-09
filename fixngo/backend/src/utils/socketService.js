@@ -83,13 +83,17 @@ const initializeSocket = (server) => {
         }
         await order.save();
 
-        // Broadcast to relevant users
-        io.emit('order-updated', {
+        // Notify only the customer and technician involved in this order
+        const payload = {
           orderId: orderId,
           status: status,
           note: note,
           timestamp: new Date(),
-        });
+        };
+        const customerSocketId = connectedUsers.get(order.user?.toString());
+        const techSocketId = connectedUsers.get(order.technicianUser?.toString());
+        if (customerSocketId) io.to(customerSocketId).emit('order-updated', payload);
+        if (techSocketId) io.to(techSocketId).emit('order-updated', payload);
 
         console.log(`Order ${orderId} updated to ${status}`);
       } catch (error) {

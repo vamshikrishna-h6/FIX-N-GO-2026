@@ -332,7 +332,7 @@ const sendPhoneOtp = async (req, res, next) => {
       return res.status(500).json({ success: false, message: 'Failed to send OTP' });
     }
 
-    console.log(`OTP sent to ${phone}: ${otp}`);
+    console.log(`OTP sent to ${phone}`);
 
     res.json({
       success: true,

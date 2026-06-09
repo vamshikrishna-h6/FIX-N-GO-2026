@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'auth/login_screen.dart';
 import '../theme/app_theme.dart';
+import 'payment_history_screen.dart';
+import 'my_ratings_screen.dart';
+import 'support_screen.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -228,8 +232,8 @@ class ProfileScreen extends StatelessWidget {
                                 onTap: () {}),
                             _MenuItem(
                                 icon: Icons.payment_rounded,
-                                label: 'Payment Methods',
-                                onTap: () {}),
+                                label: 'Payment History',
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentHistoryScreen()))),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -239,15 +243,11 @@ class ProfileScreen extends StatelessWidget {
                             _MenuItem(
                                 icon: Icons.help_outline_rounded,
                                 label: 'Help & FAQ',
-                                onTap: () {}),
-                            _MenuItem(
-                                icon: Icons.chat_bubble_outline_rounded,
-                                label: 'Chat with Support',
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
                             _MenuItem(
                                 icon: Icons.star_outline_rounded,
-                                label: 'Rate the App',
-                                onTap: () {}),
+                                label: 'My Reviews',
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyRatingsScreen()))),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -257,13 +257,7 @@ class ProfileScreen extends StatelessWidget {
                             _MenuItem(
                                 icon: Icons.notifications_outlined,
                                 label: 'Notifications',
-                                trailing: Switch(
-                                  value: true,
-                                  onChanged: (_) {},
-                                  activeThumbColor: AppColors.brandBlue,
-                                  activeTrackColor: AppColors.brandBlue.withValues(alpha: 0.4),
-                                ),
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()))),
                             _MenuItem(
                                 icon: Icons.language_rounded,
                                 label: 'Language',

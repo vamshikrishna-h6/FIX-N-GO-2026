@@ -89,4 +89,15 @@ server.listen(PORT, () => {
   console.log(`WebSocket server ready on port ${PORT}`.cyan);
 });
 
+// ── Global safety nets ────────────────────────────────────────────────────────
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Promise Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Give the server a moment to flush logs, then exit
+  setTimeout(() => process.exit(1), 1000);
+});
+
 module.exports = { app, server };

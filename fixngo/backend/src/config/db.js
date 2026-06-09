@@ -10,6 +10,19 @@ const connectDB = async () => {
     console.error('DB Connection Error:', error.message);
     process.exit(1);
   }
+
+  // Runtime connection event listeners
+  mongoose.connection.on('error', (err) => {
+    console.error('MongoDB runtime connection error:', err.message);
+  });
+
+  mongoose.connection.on('disconnected', () => {
+    console.warn('MongoDB disconnected. Attempting to reconnect…');
+  });
+
+  mongoose.connection.on('reconnected', () => {
+    console.log('MongoDB reconnected');
+  });
 };
 
 module.exports = connectDB;

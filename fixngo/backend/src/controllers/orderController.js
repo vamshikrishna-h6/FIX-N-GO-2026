@@ -42,18 +42,24 @@ const dispatchToNearestTechnician = async (order) => {
 
     return nearest;
   } catch (error) {
-    console.error('Auto-dispatch error:', error);
-    return null;
+    console.error('Auto-dispatch error:', error.message);
+    throw error;
   }
 };
 
 const assignTechnicianToOrder = async (order, technicianName) => {
   if (!technicianName) return;
 
-  const techUser = await User.findOne({
-    role: 'technician',
-    name: new RegExp(`^${technicianName.trim()}$`, 'i'),
-  });
+  let techUser;
+  try {
+    techUser = await User.findOne({
+      role: 'technician',
+      name: new RegExp(`^${technicianName.trim()}$`, 'i'),
+    });
+  } catch (error) {
+    console.error('Error looking up technician for assignment:', error.message);
+    throw error;
+  }
 
   if (!techUser) return;
 
@@ -178,7 +184,11 @@ const createOrder = async (req, res, next) => {
       await assignTechnicianToOrder(order, technician);
       await order.save();
     } else {
-      await dispatchToNearestTechnician(order);
+      try {
+        await dispatchToNearestTechnician(order);
+      } catch (dispatchError) {
+        console.error('Auto-dispatch failed, order remains pending:', dispatchError.message);
+      }
     }
 
     // Populate and return

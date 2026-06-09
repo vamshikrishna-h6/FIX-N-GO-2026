@@ -127,7 +127,8 @@ const initializeSocket = (server) => {
           }
         }
       } catch (error) {
-        console.error('Error updating location:', error);
+        console.error('Error updating location:', error.message);
+        socket.emit('error', { message: 'Failed to update location' });
       }
     });
 
@@ -147,7 +148,8 @@ const initializeSocket = (server) => {
           });
         }
       } catch (error) {
-        console.error('Error sending notification:', error);
+        console.error('Error sending notification:', error.message);
+        socket.emit('error', { message: 'Failed to send notification' });
       }
     });
 
@@ -176,7 +178,8 @@ const initializeSocket = (server) => {
           });
         }
       } catch (error) {
-        console.error('Error sending chat message:', error);
+        console.error('Error sending chat message:', error.message);
+        socket.emit('error', { message: 'Failed to send chat message' });
       }
     });
 

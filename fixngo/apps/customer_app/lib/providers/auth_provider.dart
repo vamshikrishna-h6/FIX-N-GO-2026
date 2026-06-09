@@ -16,10 +16,14 @@ class AuthProvider with ChangeNotifier {
       final user = await _storageService.getUser();
       if (user != null && user['token'] != null && user['token']!.isNotEmpty) {
         _apiService.setToken(user['token']);
-        _isAuthenticated = true;
-        await fetchProfile();
+        final fetched = await fetchProfile();
+        _isAuthenticated = fetched;
+        if (!fetched) {
+          await _storageService.clear();
+          _apiService.setToken(null);
+        }
         notifyListeners();
-        return true;
+        return fetched;
       }
     } catch (e) {
       // ignore
@@ -31,10 +35,10 @@ class AuthProvider with ChangeNotifier {
     try {
       final data = await _apiService.login(email, password);
       final token = data['token'] as String;
-      final userMap = data['data'] ?? {};
-      final name = userMap['name'] as String? ?? '';
+      final name = (data['name'] as String?) ?? '';
+      final emailNorm = email.trim().toLowerCase();
       
-      await _storageService.saveSession(token: token, name: name, email: email);
+      await _storageService.saveSession(token: token, name: name, email: emailNorm);
       _apiService.setToken(token);
       _isAuthenticated = true;
       await fetchProfile();
@@ -49,8 +53,9 @@ class AuthProvider with ChangeNotifier {
     try {
       final data = await _apiService.register(name, email, password);
       final token = data['token'] as String;
+      final emailNorm = email.trim().toLowerCase();
       
-      await _storageService.saveSession(token: token, name: name, email: email);
+      await _storageService.saveSession(token: token, name: name, email: emailNorm);
       _apiService.setToken(token);
       _isAuthenticated = true;
       await fetchProfile();
@@ -91,14 +96,15 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchProfile() async {
+  Future<bool> fetchProfile() async {
     try {
       final response = await _apiService.getProfile();
-      _userProfile = response['data'] as Map<String, dynamic>?;
+      _userProfile = response;
       notifyListeners();
+      return true;
     } catch (e) {
-      // ignore
+      _userProfile = null;
+      return false;
     }
   }
 }
-

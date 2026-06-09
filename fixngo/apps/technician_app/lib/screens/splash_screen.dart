@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../api_service_new.dart';
 import '../utils/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -11,6 +12,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
+  final ApiService _apiService = ApiService();
   late AnimationController _logoController;
   late AnimationController _pulseController;
   late Animation<double> _scaleAnim;
@@ -53,10 +55,17 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!onboardingSeen) {
       Navigator.pushReplacementNamed(context, '/onboarding');
-    } else if (token != null && token.isNotEmpty) {
-      Navigator.pushReplacementNamed(context, '/home');
     } else {
-      Navigator.pushReplacementNamed(context, '/login');
+      var isAuthenticated = false;
+      if (token != null && token.isNotEmpty) {
+        final dashboard = await _apiService.getDashboard();
+        isAuthenticated = dashboard != null;
+        if (!isAuthenticated) {
+          await prefs.remove('token');
+        }
+      }
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, isAuthenticated ? '/home' : '/login');
     }
   }
 

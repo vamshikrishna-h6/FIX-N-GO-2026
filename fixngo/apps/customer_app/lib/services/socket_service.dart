@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import '../config/api_config.dart';
 import 'storage_service.dart';
 
 class SocketService {
@@ -18,9 +19,8 @@ class SocketService {
   Future<void> connect() async {
     try {
       final token = await _storageService.getToken();
-      // Android emulator: 10.0.2.2 maps to host machine localhost
-      // Real device: Use your backend URL
-      const String serverUrl = 'http://10.0.2.2:5000';
+      if (token == null || token.isEmpty) return;
+      final serverUrl = ApiConfig.baseUrl;
 
       socket = io.io(
         serverUrl,

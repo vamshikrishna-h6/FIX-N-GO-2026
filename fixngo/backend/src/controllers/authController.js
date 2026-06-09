@@ -8,6 +8,10 @@ const generateToken = require('../utils/generateToken');
 const { sendPasswordResetEmail, generateOTP, generateResetToken } = require('../utils/emailService');
 const { sendOtpSms, generateOTP: generateOtpSms } = require('../utils/smsService');
 
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const emailSelector = (emailNorm) => ({ email: new RegExp(`^${escapeRegex(emailNorm)}$`, 'i') });
+
 const userResponse = (user, token, refreshToken) => ({
   _id: user._id,
   name: user.name,
@@ -24,7 +28,7 @@ const userResponse = (user, token, refreshToken) => ({
   technicianMeta: user.role === 'technician' ? user.technicianMeta || {} : undefined,
   customerMeta: user.role === 'customer' ? user.customerMeta || {} : undefined,
   adminMeta: user.role === 'admin' ? user.adminMeta || {} : undefined,
-  token: token || generateToken(user._id),
+  token: token || generateToken(user._id, user.role),
   refreshToken: refreshToken || '',
 });
 
@@ -48,10 +52,11 @@ const registerUser = async (req, res, next) => {
       return res.status(400).json({ message: 'Name, email, and password are required' });
     }
 
+    const emailNorm = normalizeEmail(email);
     const allowedRoles = ['customer', 'technician'];
     const userRole = allowedRoles.includes(role) ? role : 'customer';
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne(emailSelector(emailNorm));
     if (existingUser) {
       return res.status(409).json({ message: 'User already exists' });
     }
@@ -61,7 +66,7 @@ const registerUser = async (req, res, next) => {
 
     const user = await User.create({
       name,
-      email,
+      email: emailNorm,
       password: hashedPassword,
       role: userRole,
       phone: phone || '',
@@ -102,7 +107,7 @@ const registerUser = async (req, res, next) => {
           : undefined,
     });
 
-    const accessToken = generateToken(user._id);
+    const accessToken = generateToken(user._id, user.role);
     const refreshToken = await issueRefreshToken(user._id);
     res.status(201).json(userResponse(user, accessToken, refreshToken));
   } catch (error) {
@@ -117,7 +122,8 @@ const loginUser = async (req, res, next) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email });
+    const emailNorm = normalizeEmail(email);
+    const user = await User.findOne(emailSelector(emailNorm));
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -131,7 +137,7 @@ const loginUser = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const accessToken = generateToken(user._id);
+    const accessToken = generateToken(user._id, user.role);
     const refreshToken = await issueRefreshToken(user._id);
     res.json(userResponse(user, accessToken, refreshToken));
   } catch (error) {
@@ -207,7 +213,8 @@ const forgotPassword = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
-    const user = await User.findOne({ email });
+    const emailNorm = normalizeEmail(email);
+    const user = await User.findOne(emailSelector(emailNorm));
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -371,7 +378,8 @@ const verifyPhoneOtp = async (req, res, next) => {
     }
 
     // If signup via OTP
-    const existingUser = await User.findOne({ email });
+    const emailNorm = normalizeEmail(email);
+    const existingUser = await User.findOne(emailSelector(emailNorm));
     if (existingUser) {
       return res.status(409).json({ success: false, message: 'Email already registered' });
     }
@@ -390,7 +398,7 @@ const verifyPhoneOtp = async (req, res, next) => {
 
     const user = await User.create({
       name,
-      email,
+      email: emailNorm,
       password: hashedPassword,
       role: userRole,
       phone,
@@ -401,7 +409,7 @@ const verifyPhoneOtp = async (req, res, next) => {
           : undefined,
     });
 
-    const accessToken = generateToken(user._id);
+    const accessToken = generateToken(user._id, user.role);
     const refreshToken = await issueRefreshToken(user._id);
     res.status(201).json({
       success: true,
@@ -444,7 +452,7 @@ const refreshAccessToken = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const newAccessToken = generateToken(user._id);
+    const newAccessToken = generateToken(user._id, user.role);
 
     // Issue new refresh token
     const newRefreshTokenStr = crypto.randomBytes(64).toString('hex');
@@ -488,4 +496,3 @@ module.exports = {
   refreshAccessToken,
   issueRefreshToken,
 };
-

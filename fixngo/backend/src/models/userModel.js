@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const userSchema = mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['customer', 'technician', 'admin'], default: 'customer' },
     accountStatus: { type: String, enum: ['active', 'pending', 'suspended'], default: 'active' },
@@ -24,6 +24,7 @@ const userSchema = mongoose.Schema(
     isOnline: { type: Boolean, default: false },
     lastLat: { type: Number, default: null },
     lastLng: { type: Number, default: null },
+    lastLocationUpdate: { type: Date, default: null },
     location: {
       type: { type: String, default: 'Point' },
       coordinates: { type: [Number], default: [0, 0] },
@@ -83,4 +84,3 @@ const userSchema = mongoose.Schema(
 userSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('User', userSchema);
-

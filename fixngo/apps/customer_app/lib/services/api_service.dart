@@ -21,7 +21,11 @@ class ApiService {
       };
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final data = await _post('/api/auth/login', {'email': email, 'password': password});
+    final data = await _post('/api/auth/login', {
+      'email': email.trim().toLowerCase(),
+      'password': password,
+      'role': 'customer',
+    });
     _token = data['token'] as String?;
     return data;
   }
@@ -29,8 +33,9 @@ class ApiService {
   Future<Map<String, dynamic>> register(String name, String email, String password) async {
     final data = await _post('/api/auth/register', {
       'name': name,
-      'email': email,
+      'email': email.trim().toLowerCase(),
       'password': password,
+      'role': 'customer',
     });
     _token = data['token'] as String?;
     return data;

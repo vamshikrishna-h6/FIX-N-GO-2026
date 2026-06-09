@@ -16,7 +16,7 @@ const initializeSocket = (server) => {
   });
 
   // Middleware to verify JWT
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) {
       return next(new Error('Authentication error: Token missing'));
@@ -25,7 +25,12 @@ const initializeSocket = (server) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.id;
-      socket.userRole = decoded.role;
+      if (decoded.role) {
+        socket.userRole = decoded.role;
+      } else {
+        const user = await User.findById(decoded.id).select('role');
+        socket.userRole = user?.role;
+      }
       next();
     } catch (err) {
       next(new Error('Authentication error: Invalid token'));

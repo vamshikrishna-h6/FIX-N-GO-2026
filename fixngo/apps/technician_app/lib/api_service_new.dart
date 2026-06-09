@@ -1,26 +1,17 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'config/api_config.dart';
+
 class ApiService {
-  static String get serverOrigin {
-    if (kIsWeb) return 'http://localhost:5000';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:5000';
-    return 'http://localhost:5000';
-  }
-
-  static String get baseUrl {
-    return '';
-  }
-
   static String get apiBaseUrl {
-    return '$serverOrigin/api';
+    return ApiConfig.apiBaseUrl;
   }
 
   static String imageUrl(String path) {
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return '$serverOrigin$path';
+    return '${ApiConfig.baseUrl}$path';
   }
   
   Future<String?> getToken() async {
@@ -46,7 +37,11 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$apiBaseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password, 'role': 'technician'}),
+        body: jsonEncode({
+          'email': email.trim().toLowerCase(),
+          'password': password,
+          'role': 'technician',
+        }),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -264,7 +259,7 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': name,
-          'email': email,
+          'email': email.trim().toLowerCase(),
           'password': password,
           'phone': phone,
           'role': 'technician',

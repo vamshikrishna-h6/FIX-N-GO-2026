@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import 'order_detail_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -151,7 +152,19 @@ class _OrdersScreenState extends State<OrdersScreen>
       itemCount: orders.length,
       itemBuilder: (context, i) {
         final order = orders[i];
-        return Container(
+        return GestureDetector(
+          onTap: () {
+            final id = order['_id'] as String? ?? order['id'] as String? ?? '';
+            if (id.isNotEmpty) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OrderDetailScreen(orderId: id),
+                ),
+              );
+            }
+          },
+          child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -257,7 +270,17 @@ class _OrdersScreenState extends State<OrdersScreen>
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      final id = order['_id'] as String? ?? order['id'] as String? ?? '';
+                      if (id.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderDetailScreen(orderId: id),
+                          ),
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brandBlue,
                       foregroundColor: Colors.white,
@@ -274,6 +297,7 @@ class _OrdersScreenState extends State<OrdersScreen>
               ],
             ],
           ),
+        ),
         );
       },
     );

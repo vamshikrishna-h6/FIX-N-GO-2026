@@ -3,6 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'auth/login_screen.dart';
+import 'help_faq_screen.dart';
+import 'language_screen.dart';
+import 'notifications_screen.dart';
+import 'payment_methods_screen.dart';
+import 'rate_app_screen.dart';
+import 'saved_addresses_screen.dart';
+import 'support_chat_screen.dart';
 import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -225,11 +232,13 @@ class ProfileScreen extends StatelessWidget {
                                 icon: Icons.location_on_outlined,
                                 label: 'Saved Addresses',
                                 badge: '2',
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const SavedAddressesScreen()))),
                             _MenuItem(
                                 icon: Icons.payment_rounded,
                                 label: 'Payment Methods',
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const PaymentMethodsScreen()))),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -239,15 +248,18 @@ class ProfileScreen extends StatelessWidget {
                             _MenuItem(
                                 icon: Icons.help_outline_rounded,
                                 label: 'Help & FAQ',
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const HelpFaqScreen()))),
                             _MenuItem(
                                 icon: Icons.chat_bubble_outline_rounded,
                                 label: 'Chat with Support',
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const SupportChatScreen()))),
                             _MenuItem(
                                 icon: Icons.star_outline_rounded,
                                 label: 'Rate the App',
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const RateAppScreen()))),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -263,12 +275,14 @@ class ProfileScreen extends StatelessWidget {
                                   activeThumbColor: AppColors.brandBlue,
                                   activeTrackColor: AppColors.brandBlue.withValues(alpha: 0.4),
                                 ),
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const NotificationsScreen()))),
                             _MenuItem(
                                 icon: Icons.language_rounded,
                                 label: 'Language',
                                 badge: 'EN',
-                                onTap: () {}),
+                                onTap: () => Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const LanguageScreen()))),
                           ],
                         ),
                         const SizedBox(height: 20),

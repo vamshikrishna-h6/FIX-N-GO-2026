@@ -1,4 +1,7 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_fake');
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.warn('STRIPE_SECRET_KEY is not set — Stripe calls will fail.');
+}
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_not_configured');
 const Payment = require('../models/paymentModel');
 const Withdrawal = require('../models/withdrawalModel');
 const Order = require('../models/orderModel');
@@ -109,23 +112,14 @@ const confirmPayment = async (req, res, next) => {
       });
     }
 
-    // In test/mock mode, accept any payment intent starting with pi_test
     let paymentSucceeded = false;
-    
-    if (paymentIntentId.startsWith('pi_test')) {
-      // Mock mode - accept test payment intents
+
+    if (process.env.NODE_ENV !== 'production' && paymentIntentId.startsWith('pi_test')) {
       paymentSucceeded = true;
-      console.log(`[MOCK] Payment intent ${paymentIntentId} accepted in test mode`);
+      console.log(`[DEV] Test payment intent ${paymentIntentId} accepted`);
     } else {
-      try {
-        // Get payment intent from Stripe
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-        paymentSucceeded = paymentIntent.status === 'succeeded';
-      } catch (stripeError) {
-        console.log(`[MOCK] Stripe error (using mock mode):`, stripeError.message);
-        // In case Stripe fails, accept in mock mode
-        paymentSucceeded = true;
-      }
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      paymentSucceeded = paymentIntent.status === 'succeeded';
     }
 
     if (!paymentSucceeded) {
@@ -377,6 +371,11 @@ const handleStripeWebhook = async (req, res) => {
 
   let event;
 
+  if (!endpointSecret && process.env.NODE_ENV === 'production') {
+    console.error('STRIPE_WEBHOOK_SECRET is not set in production');
+    return res.status(500).json({ error: 'Webhook not configured' });
+  }
+
   if (endpointSecret && sig) {
     try {
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
@@ -384,13 +383,14 @@ const handleStripeWebhook = async (req, res) => {
       console.error('Webhook signature verification failed:', err.message);
       return res.status(400).json({ error: `Webhook Error: ${err.message}` });
     }
-  } else {
-    // In dev/test mode without webhook secret, parse the body directly
+  } else if (process.env.NODE_ENV !== 'production') {
     try {
       event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     } catch (err) {
       return res.status(400).json({ error: 'Invalid webhook payload' });
     }
+  } else {
+    return res.status(400).json({ error: 'Webhook signature required' });
   }
 
   // Handle the event

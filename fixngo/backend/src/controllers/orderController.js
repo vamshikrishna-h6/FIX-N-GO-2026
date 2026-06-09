@@ -50,9 +50,10 @@ const dispatchToNearestTechnician = async (order) => {
 const assignTechnicianToOrder = async (order, technicianName) => {
   if (!technicianName) return;
 
+  const escaped = technicianName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const techUser = await User.findOne({
     role: 'technician',
-    name: new RegExp(`^${technicianName.trim()}$`, 'i'),
+    name: new RegExp(`^${escaped}$`, 'i'),
   });
 
   if (!techUser) return;

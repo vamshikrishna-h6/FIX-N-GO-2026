@@ -2,8 +2,7 @@ const axios = require('axios');
 const Order = require('../models/orderModel');
 const User = require('../models/userModel');
 
-// Google Maps API Key
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyDemoKey123'; // Demo key for now
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
 
 // Calculate distance between two coordinates (Haversine formula)
 const calculateDistance = (lat1, lon1, lat2, lon2) => {

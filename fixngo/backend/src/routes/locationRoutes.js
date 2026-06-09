@@ -9,11 +9,11 @@ const {
   updateTechnicianLocation,
 } = require('../controllers/locationController');
 
-// Location routes
+// Location routes — all require authentication
 router.post('/nearby-orders', authMiddleware, getNearbyOrders);
-router.post('/suggestions', getLocationSuggestions);
-router.post('/place-details', getPlaceDetails);
-router.post('/route', getRoute);
+router.post('/suggestions', authMiddleware, getLocationSuggestions);
+router.post('/place-details', authMiddleware, getPlaceDetails);
+router.post('/route', authMiddleware, getRoute);
 router.post('/update-location', authMiddleware, updateTechnicianLocation);
 
 module.exports = router;

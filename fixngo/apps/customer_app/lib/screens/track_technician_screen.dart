@@ -4,6 +4,7 @@ import '../services/socket_service.dart';
 import '../services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import 'chat_screen.dart';
 
@@ -119,7 +120,12 @@ class _TrackTechnicianScreenState extends State<TrackTechnicianScreen>
             child: IconButton(
               icon: const Icon(Icons.phone_rounded,
                   color: AppColors.brandGreen, size: 22),
-              onPressed: () {},
+              onPressed: () {
+                final phone = _order?.technicianPhone ?? '';
+                if (phone.isNotEmpty) {
+                  launchUrl(Uri.parse('tel:$phone'));
+                }
+              },
             ),
           ),
         ],
@@ -375,7 +381,12 @@ class _TrackTechnicianScreenState extends State<TrackTechnicianScreen>
                                   _ActionButton(
                                     icon: Icons.phone_rounded,
                                     color: AppColors.brandGreen,
-                                    onTap: () {},
+                                    onTap: () {
+                                      final phone = _order?.technicianPhone ?? '';
+                                      if (phone.isNotEmpty) {
+                                        launchUrl(Uri.parse('tel:$phone'));
+                                      }
+                                    },
                                   ),
                                 ],
                               ),

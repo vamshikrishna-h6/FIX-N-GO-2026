@@ -5,6 +5,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service_new.dart';
+import 'screens/bank_details_screen.dart';
+import 'screens/documents_kyc_screen.dart';
+import 'screens/edit_profile_screen.dart';
+import 'screens/notification_settings_screen.dart';
+import 'screens/privacy_policy_screen.dart';
+import 'screens/terms_of_service_screen.dart';
 import 'widgets/common_widgets.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -284,15 +290,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 24),
                   const SectionLabel('Account'),
-                  _menuItem(Icons.edit, 'Edit Profile', () {}),
-                  _menuItem(Icons.document_scanner_rounded, 'Documents & KYC', () {}),
-                  _menuItem(Icons.account_balance_rounded, 'Bank Details', () {}),
-                  _menuItem(Icons.notifications_rounded, 'Notification Settings', () {}),
+                  _menuItem(Icons.edit, 'Edit Profile', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()))),
+                  _menuItem(Icons.document_scanner_rounded, 'Documents & KYC', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DocumentsKycScreen()))),
+                  _menuItem(Icons.account_balance_rounded, 'Bank Details', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BankDetailsScreen()))),
+                  _menuItem(Icons.notifications_rounded, 'Notification Settings', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationSettingsScreen()))),
                   const SizedBox(height: 16),
                   const SectionLabel('Support'),
                   _menuItem(Icons.help_rounded, 'Help & Support', () => Navigator.pushNamed(context, '/support')),
-                  _menuItem(Icons.policy_rounded, 'Privacy Policy', () {}),
-                  _menuItem(Icons.gavel_rounded, 'Terms of Service', () {}),
+                  _menuItem(Icons.policy_rounded, 'Privacy Policy', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()))),
+                  _menuItem(Icons.gavel_rounded, 'Terms of Service', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsOfServiceScreen()))),
                   const SizedBox(height: 24),
                   GestureDetector(
                     onTap: _logout,

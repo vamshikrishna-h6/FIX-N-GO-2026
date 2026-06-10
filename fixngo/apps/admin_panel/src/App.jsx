@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
@@ -48,7 +48,7 @@ function Orders() {
               <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No orders found.</td></tr>
             ) : (
               orders.map(order => (
-                <React.Fragment key={order._id}>
+                <Fragment key={order._id}>
                   <tr>
                     <td style={{ fontFamily: 'monospace' }}>{order._id.substring(0,8)}...</td>
                     <td>
@@ -76,7 +76,7 @@ function Orders() {
                       </td>
                     </tr>
                   )}
-                </React.Fragment>
+                </Fragment>
               ))
             )}
           </tbody>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, DollarSign, Users, Wrench, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { Activity, Users, Wrench, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import api from '../api';
 
 export default function Dashboard() {

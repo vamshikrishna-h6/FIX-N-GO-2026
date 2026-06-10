@@ -6,21 +6,43 @@ export default function Withdrawals() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
 
-  const fetchWithdrawals = () => {
+  const reloadWithdrawals = () => {
     setLoading(true);
-    api.get('/payments/admin/withdrawals')
-      .then(res => setWithdrawals(res.data.data || []))
-      .catch(err => console.error(err))
+    return api
+      .get('/payments/admin/withdrawals')
+      .then((res) => setWithdrawals(res.data.data || []))
+      .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchWithdrawals(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .get('/payments/admin/withdrawals')
+      .then((res) => {
+        if (cancelled) return;
+        setWithdrawals(res.data.data || []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error(err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleApprove = async (id) => {
     setActionLoading(id);
     try {
       await api.patch(`/payments/admin/withdrawals/${id}/approve`);
-      fetchWithdrawals();
+      await reloadWithdrawals();
     } catch (err) {
       console.error(err);
     }
@@ -31,7 +53,7 @@ export default function Withdrawals() {
     setActionLoading(id);
     try {
       await api.patch(`/payments/admin/withdrawals/${id}/reject`);
-      fetchWithdrawals();
+      await reloadWithdrawals();
     } catch (err) {
       console.error(err);
     }

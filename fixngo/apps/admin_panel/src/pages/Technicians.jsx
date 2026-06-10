@@ -6,21 +6,43 @@ export default function Technicians() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
 
-  const fetchTechnicians = () => {
+  const reloadTechnicians = () => {
     setLoading(true);
-    api.get('/admin/technicians')
-      .then(res => setTechnicians(res.data.data || []))
-      .catch(err => console.error(err))
+    return api
+      .get('/admin/technicians')
+      .then((res) => setTechnicians(res.data.data || []))
+      .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchTechnicians(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .get('/admin/technicians')
+      .then((res) => {
+        if (cancelled) return;
+        setTechnicians(res.data.data || []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error(err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleApprove = async (id) => {
     setActionLoading(id);
     try {
       await api.patch(`/admin/technicians/${id}/approve`);
-      fetchTechnicians();
+      await reloadTechnicians();
     } catch (err) {
       console.error(err);
     }
@@ -31,7 +53,7 @@ export default function Technicians() {
     setActionLoading(id);
     try {
       await api.patch(`/admin/technicians/${id}/suspend`);
-      fetchTechnicians();
+      await reloadTechnicians();
     } catch (err) {
       console.error(err);
     }

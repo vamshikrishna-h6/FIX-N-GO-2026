@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'api_service_new.dart';
 import 'widgets/common_widgets.dart';
+import 'screens/job_notes_screen.dart';
+import 'screens/job_photos_screen.dart';
+import 'screens/parts_tracking_screen.dart';
+import 'screens/time_tracking_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
   const JobDetailScreen({super.key});
@@ -254,6 +258,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     if (_currentStep == 1) _buildStartContent(serviceType, device, phone),
                     if (_currentStep == 2) _buildChecklist(),
                     if (_currentStep == 3) _buildPaymentPreview(price),
+                    const SizedBox(height: 12),
+                    _buildJobTools(),
                   ],
                 ),
               ),
@@ -551,6 +557,67 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildJobTools() {
+    final jobId = _job?['_id'] ?? 'unknown';
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.construction_rounded, color: AppColors.orange, size: 20),
+              SizedBox(width: 8),
+              Text('Job Tools', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _toolBtn(Icons.note_alt_rounded, 'Notes', AppColors.yellow, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => JobNotesScreen(jobId: jobId)));
+              }),
+              const SizedBox(width: 10),
+              _toolBtn(Icons.camera_alt_rounded, 'Photos', AppColors.green, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => JobPhotosScreen(jobId: jobId)));
+              }),
+              const SizedBox(width: 10),
+              _toolBtn(Icons.inventory_2_rounded, 'Parts', AppColors.orange, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => PartsTrackingScreen(jobId: jobId)));
+              }),
+              const SizedBox(width: 10),
+              _toolBtn(Icons.timer_rounded, 'Time', AppColors.red, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => TimeTrackingScreen(jobId: jobId)));
+              }),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toolBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
       ),
     );
   }

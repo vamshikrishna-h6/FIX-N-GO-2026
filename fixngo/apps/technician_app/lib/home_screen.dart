@@ -140,6 +140,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               children: [
                 _buildHeader(),
                 _buildStats(),
+                _buildQuickActions(),
                 const SizedBox(height: 8),
                 Expanded(child: _buildBody()),
               ],
@@ -320,6 +321,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               textAlign: TextAlign.center,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          _quickAction(Icons.calendar_month_rounded, 'Schedule', AppColors.orange, () => Navigator.pushNamed(context, '/schedule')),
+          const SizedBox(width: 10),
+          _quickAction(Icons.bar_chart_rounded, 'Reports', AppColors.green, () => Navigator.pushNamed(context, '/reports')),
+          const SizedBox(width: 10),
+          _quickAction(Icons.history_rounded, 'History', AppColors.yellow, () => Navigator.pushNamed(context, '/activity_history')),
+          const SizedBox(width: 10),
+          _quickAction(Icons.notifications_rounded, 'Alerts', AppColors.red, () => Navigator.pushNamed(context, '/notifications')),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickAction(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+            ],
+          ),
         ),
       ),
     );

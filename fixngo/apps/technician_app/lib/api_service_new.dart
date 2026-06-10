@@ -358,4 +358,58 @@ class ApiService {
     }
     return false;
   }
+
+  Future<List<dynamic>> getJobHistory() async {
+    try {
+      final res = await http.get(Uri.parse('$apiBaseUrl/tech/jobs?status=all'), headers: await _getHeaders());
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) return data;
+        if (data is Map && data['data'] != null) return data['data'] as List<dynamic>;
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> updateJobChecklist(String orderId, List<bool> checklist) async {
+    try {
+      final res = await http.patch(
+        Uri.parse('$apiBaseUrl/tech/jobs/$orderId/checklist'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'checklist': checklist}),
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> declineJob(String orderId) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$apiBaseUrl/tech/jobs/$orderId/decline'),
+        headers: await _getHeaders(),
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getJobById(String orderId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$apiBaseUrl/tech/jobs/$orderId'),
+        headers: await _getHeaders(),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
 }
